@@ -10,7 +10,7 @@ from pykeen.nn.representation import Embedding
 
 
 # for now using UMLS because it is pretty small
-def addConfidenceScoreRandomly():
+def addConfidenceScoreRandomly(begin=0, end=1):
     dataset = ds.UMLS()
     triples = np.concatenate([
         dataset.training.mapped_triples.numpy(),
@@ -21,9 +21,9 @@ def addConfidenceScoreRandomly():
     df = pd.DataFrame(triples, columns=["head", "relation", "tail"])
         
     # Generate random confidence scores and add to DataFrame
-    df["confidence_score"] = np.random.rand(triples.shape[0])
+    df["confidence_score"] = np.random.rand(triples.shape[0]) * (end - begin) + begin
 
-    save_to_csv(df, dataset, 0)
+    save_to_csv(df, dataset, 0, begin, end)
     
 # I found the function in this paper: https://arxiv.org/pdf/1811.10667
 def addConfidenceScoreBasedOnDataset():
@@ -85,19 +85,21 @@ def getEmbeddings(dataset):
     return entity_embedding_tensor.detach().numpy(), relation_embedding_tensor.detach().numpy()
         
 
-def save_to_csv(df, dataset, methodType: int):
+def save_to_csv(df, dataset, methodType: int, begin=None, end=None):
     dataset_name = dataset.__class__.__name__  # Get dataset name dynamically
     
     methodName = ""
+    range = ""
     
     if methodType == 0:
         methodName = "random"
+        range = f"_from_{begin}_to_{end}"
     elif methodType == 1:
         methodName = "compute"
 
     # Define file path for saving
     folder_path = "datasets"
-    file_path = os.path.join(folder_path, f"{dataset_name}_{methodName}_with_confidence.csv")
+    file_path = os.path.join(folder_path, f"{dataset_name}_{methodName}{range}_with_confidence.csv")
 
     # Ensure the directory exists
     os.makedirs(folder_path, exist_ok=True)
@@ -109,7 +111,7 @@ def save_to_csv(df, dataset, methodType: int):
 
     
 if __name__ == "__main__":
-    #addConfidenceScoreRandomly()
-    addConfidenceScoreBasedOnDataset()
+    addConfidenceScoreRandomly(0.1, 0.2)
+    #addConfidenceScoreBasedOnDataset()
     
     
