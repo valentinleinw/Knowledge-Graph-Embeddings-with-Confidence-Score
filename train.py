@@ -218,13 +218,13 @@ def evaluate_complex(model, dataset, top_k=10):
 
 
 # Step 5: Function to write the evaluation results to a CSV file
-def write_results_to_csv(file_name, model_name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, weighted_mrr):
+def write_results_to_csv(file_name, model_name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, weighted_mrr, dataset_file):
     # Check if the file exists to write headers only once
     file_exists = os.path.exists(file_name)
 
     # Open the file in append mode ('a') to add new rows instead of overwriting
     with open(file_name, mode="a", newline="") as file:
-        fieldnames = ["Model", "Mean Rank", "MRR", "Hits@1", "Hits@5", "Hits@10", "Weighted MRR"]
+        fieldnames = ["Model", "Mean Rank", "MRR", "Hits@1", "Hits@5", "Hits@10", "Weighted MRR", "Dataset"]
         writer = csv.DictWriter(file, fieldnames=fieldnames)
 
         # Write the header only if the file doesn't already exist
@@ -239,7 +239,8 @@ def write_results_to_csv(file_name, model_name, mean_rank, mrr, hits_at_1, hits_
             "Hits@1": hits_at_1,
             "Hits@5": hits_at_5,
             "Hits@10": hits_at_k,
-            "Weighted MRR": weighted_mrr
+            "Weighted MRR": weighted_mrr,
+            "Dataset": dataset_file
         })
 
 # Step 6: Main Training and Evaluation Loop (with writing results to CSV)
@@ -304,7 +305,7 @@ def train_and_evaluate(file_path, embedding_dim=50, batch_size=64, num_epochs=10
         # Print results
         print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_k}, Weighted MRR: {weighted_mrr}")
         
-        write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, weighted_mrr)
+        write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, weighted_mrr, file_path)
 
 # Call the function with your dataset file and desired result file path
 current_datetime = datetime.now()
