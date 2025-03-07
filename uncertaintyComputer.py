@@ -23,7 +23,7 @@ def addConfidenceScoreRandomly(begin=0, end=1):
     # Generate random confidence scores and add to DataFrame
     df["confidence_score"] = np.random.rand(triples.shape[0]) * (end - begin) + begin
 
-    save_to_csv(df, dataset, 0, "TransE", begin, end)
+    csvEditor.save_to_csv(df, dataset, 0, "TransE", begin, end)
     
 # I found the function in this paper: https://arxiv.org/pdf/1811.10667
 def getEmbeddings(dataset, model_class):
@@ -82,7 +82,6 @@ def addConfidenceScoreBasedOnDataset(model_class, model_name):
 
     
 addConfidenceScoreRandomly(0.1, 0.2)
-#addConfidenceScoreBasedOnDataset()
 addConfidenceScoreBasedOnDataset(TransE, "TransE")
 addConfidenceScoreBasedOnDataset(DistMult, "DistMult")
 addConfidenceScoreBasedOnDataset(ComplEx, "ComplEx")
