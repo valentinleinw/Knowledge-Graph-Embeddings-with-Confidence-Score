@@ -174,6 +174,7 @@ def train_and_evaluate(file_path, embedding_dim=50, batch_size=64, num_epochs=10
     # Training Loop
     for name, model in models.items():
         print(f"\nTraining {name}...")
+        loss_model = 0
         
         model.train()  # Set model to training mode
         for epoch in range(num_epochs):
@@ -203,9 +204,9 @@ def train_and_evaluate(file_path, embedding_dim=50, batch_size=64, num_epochs=10
                 total_loss += loss.item()
         
             print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
+        
+        loss_model = total_loss / len(train_loader)
     
-    # Evaluate the model
-    for name, model in models.items():
         print(f"\nEvaluating {name}...")
         if name == "ComplEx":
             mean_rank, mrr, hits_at_k, weighted_mrr, hits_at_1, hits_at_5 = evaluate_complex(models[name], dataset)
@@ -215,4 +216,4 @@ def train_and_evaluate(file_path, embedding_dim=50, batch_size=64, num_epochs=10
         # Print results
         print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_k}, Weighted MRR: {weighted_mrr}")
         
-        csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, weighted_mrr, file_path)
+        csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, weighted_mrr, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)

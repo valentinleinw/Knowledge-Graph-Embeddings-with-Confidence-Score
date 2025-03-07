@@ -1,6 +1,6 @@
 import train
 import time
-import datetime
+from datetime import datetime
 
 if __name__ == "__main__":
     current_datetime = datetime.now()

@@ -28,13 +28,13 @@ class csvEditor():
         print(f"Dataset with confidence scores saved successfully at: {file_path}")
         
     @staticmethod
-    def write_results_to_csv(file_name, model_name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, weighted_mrr, dataset_file):
+    def write_results_to_csv(file_name, model_name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, weighted_mrr, dataset_file, loss, epochs, embDims, batchSize, margin):
         # Check if the file exists to write headers only once
         file_exists = os.path.exists(file_name)
 
         # Open the file in append mode ('a') to add new rows instead of overwriting
         with open(file_name, mode="a", newline="") as file:
-            fieldnames = ["Model", "Mean Rank", "MRR", "Hits@1", "Hits@5", "Hits@10", "Weighted MRR", "Dataset"]
+            fieldnames = ["Model", "Dataset", "Epochs", "Embedding Dims", "Batch Size", "Margin", "Loss", "Mean Rank", "MRR", "Hits@1", "Hits@5", "Hits@10", "Weighted MRR"]
             writer = csv.DictWriter(file, fieldnames=fieldnames)
 
             # Write the header only if the file doesn't already exist
@@ -44,11 +44,16 @@ class csvEditor():
             # Write the results for the given model
             writer.writerow({
                 "Model": model_name,
+                "Dataset": dataset_file,
+                "Epochs": epochs,
+                "Embedding Dims": embDims,
+                "Batch Size": batchSize,
+                "Margin": margin,
+                "Loss": loss,
                 "Mean Rank": mean_rank,
                 "MRR": mrr,
                 "Hits@1": hits_at_1,
                 "Hits@5": hits_at_5,
                 "Hits@10": hits_at_k,
-                "Weighted MRR": weighted_mrr,
-                "Dataset": dataset_file
+                "Weighted MRR": weighted_mrr
             })
