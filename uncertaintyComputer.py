@@ -3,10 +3,10 @@ import pandas as pd
 import os 
 import numpy as np 
 from pykeen.models import TransE, DistMult, ComplEx
-import torch
 from pykeen.pipeline import pipeline
 from pykeen.models import ERModel
 from pykeen.nn.representation import Embedding
+from csvEditor import csvEditor
 
 
 # for now using UMLS because it is pretty small
@@ -78,38 +78,13 @@ def addConfidenceScoreBasedOnDataset(model_class, model_name):
     df = pd.DataFrame(triples, columns=["head", "relation", "tail"])
     df["confidence_score"] = final_confidence_scores
     
-    save_to_csv(df, dataset, 1, model_name)
-
-def save_to_csv(df, dataset, methodType: int, model="", begin=None, end=None):
-    dataset_name = dataset.__class__.__name__  # Get dataset name dynamically
-    
-    methodName = ""
-    range = ""
-    
-    if methodType == 0:
-        methodName = "random"
-        range = f"_from_{begin}_to_{end}"
-    elif methodType == 1:
-        methodName = "compute"
-
-    # Define file path for saving
-    folder_path = "datasets"
-    file_path = os.path.join(folder_path, f"{dataset_name}_{methodName}{range}_{model}_with_confidence.csv")
-
-    # Ensure the directory exists
-    os.makedirs(folder_path, exist_ok=True)
-
-    # Save DataFrame to CSV
-    df.to_csv(file_path, index=False)
-
-    print(f"Dataset with confidence scores saved successfully at: {file_path}")
+    csvEditor.save_to_csv(df, dataset, 1, model_name)
 
     
-if __name__ == "__main__":
-    addConfidenceScoreRandomly(0.1, 0.2)
-    #addConfidenceScoreBasedOnDataset()
-    addConfidenceScoreBasedOnDataset(TransE, "TransE")
-    addConfidenceScoreBasedOnDataset(DistMult, "DistMult")
-    addConfidenceScoreBasedOnDataset(ComplEx, "ComplEx")
+addConfidenceScoreRandomly(0.1, 0.2)
+#addConfidenceScoreBasedOnDataset()
+addConfidenceScoreBasedOnDataset(TransE, "TransE")
+addConfidenceScoreBasedOnDataset(DistMult, "DistMult")
+addConfidenceScoreBasedOnDataset(ComplEx, "ComplEx")
     
     

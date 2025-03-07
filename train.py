@@ -1,15 +1,12 @@
 import torch
-import torch.nn as nn
 import torch.optim as optim
 import pandas as pd
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
-from datetime import datetime
-import csv
-import os
+from models import TransEUncertainty, DistMultUncertainty, ComplExUncertainty
+from csvEditor import csvEditor
 
 
-# Step 1: Read and preprocess the CSV file
 class KnowledgeGraphDataset(Dataset):
     def __init__(self, file_path):
         # Read the CSV file
@@ -39,66 +36,6 @@ class KnowledgeGraphDataset(Dataset):
         # Return the triple and the confidence score
         head, relation, tail, confidence = self.triples[idx]
         return head, relation, tail, confidence
-
-# Step 2: TransE Model Definition
-class TransEUncertainty(nn.Module):
-    def __init__(self, num_entities, num_relations, embedding_dim):
-        super(TransEUncertainty, self).__init__()
-        self.entity_embeddings = nn.Embedding(num_entities, embedding_dim)
-        self.relation_embeddings = nn.Embedding(num_relations, embedding_dim)
-    
-    def forward(self, h, r, t):
-        return self.entity_embeddings(h) + self.relation_embeddings(r) - self.entity_embeddings(t)
-    
-    def loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
-        pos_loss = torch.sum(confidence_scores * torch.clamp(
-            margin + torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1) -
-            torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1), min=0))
-        return pos_loss
-    
-class DistMultUncertainty(nn.Module):
-    def __init__(self, num_entities, num_relations, embedding_dim):
-        super(DistMultUncertainty, self).__init__()
-        self.entity_embeddings = nn.Embedding(num_entities, embedding_dim)
-        self.relation_embeddings = nn.Embedding(num_relations, embedding_dim)
-    
-    def forward(self, h, r, t):
-        head_embedding = self.entity_embeddings(h)
-        relation_embedding = self.relation_embeddings(r)
-        tail_embedding = self.entity_embeddings(t)
-        return torch.sum(head_embedding * relation_embedding * tail_embedding, dim=1)
-
-    def loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
-        pos_score = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
-        neg_score = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
-        pos_loss = confidence_scores * torch.clamp(margin - pos_score + neg_score, min=0)
-        return pos_loss.sum()
-    
-class ComplExUncertainty(nn.Module):
-    def __init__(self, num_entities, num_relations, embedding_dim):
-        super(ComplExUncertainty, self).__init__()
-        self.entity_re_embeddings = nn.Embedding(num_entities, embedding_dim)
-        self.entity_im_embeddings = nn.Embedding(num_entities, embedding_dim)
-        self.relation_re_embeddings = nn.Embedding(num_relations, embedding_dim)
-        self.relation_im_embeddings = nn.Embedding(num_relations, embedding_dim)
-
-    def forward(self, h, r, t):
-        head_real, head_imag = self.entity_re_embeddings(h), self.entity_im_embeddings(h)
-        relation_real, relation_imag = self.relation_re_embeddings(r), self.relation_im_embeddings(r)
-        tail_real, tail_imag = self.entity_re_embeddings(t), self.entity_im_embeddings(t)
-
-        return torch.sum(
-            head_real * relation_real * tail_real + head_imag * relation_real * tail_imag + head_real * relation_imag * tail_imag - head_imag * relation_imag * tail_real,
-            dim=1
-        )
-
-    def loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
-        pos_score = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
-        neg_score = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
-        pos_loss = confidence_scores * torch.clamp(margin - pos_score + neg_score, min=0)
-        return pos_loss.sum()
-
-
 
 # Step 3: Negative Sampling
 def negative_sampling(triples, num_entities):
@@ -216,33 +153,6 @@ def evaluate_complex(model, dataset, top_k=10):
     return mean_rank, mrr, hits_at_k, weighted_mrr, hits_at_1, hits_at_5
 
 
-
-# Step 5: Function to write the evaluation results to a CSV file
-def write_results_to_csv(file_name, model_name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, weighted_mrr, dataset_file):
-    # Check if the file exists to write headers only once
-    file_exists = os.path.exists(file_name)
-
-    # Open the file in append mode ('a') to add new rows instead of overwriting
-    with open(file_name, mode="a", newline="") as file:
-        fieldnames = ["Model", "Mean Rank", "MRR", "Hits@1", "Hits@5", "Hits@10", "Weighted MRR", "Dataset"]
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-
-        # Write the header only if the file doesn't already exist
-        if not file_exists:
-            writer.writeheader()
-
-        # Write the results for the given model
-        writer.writerow({
-            "Model": model_name,
-            "Mean Rank": mean_rank,
-            "MRR": mrr,
-            "Hits@1": hits_at_1,
-            "Hits@5": hits_at_5,
-            "Hits@10": hits_at_k,
-            "Weighted MRR": weighted_mrr,
-            "Dataset": dataset_file
-        })
-
 # Step 6: Main Training and Evaluation Loop (with writing results to CSV)
 def train_and_evaluate(file_path, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
     # Load the dataset
@@ -305,13 +215,4 @@ def train_and_evaluate(file_path, embedding_dim=50, batch_size=64, num_epochs=10
         # Print results
         print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_k}, Weighted MRR: {weighted_mrr}")
         
-        write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, weighted_mrr, file_path)
-
-# Call the function with your dataset file and desired result file path
-current_datetime = datetime.now()
-
-# Optionally, you can format it as a string if needed
-date = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
-
-train_and_evaluate("datasets/UMLS_compute_with_confidence.csv", embedding_dim=50, batch_size=64, num_epochs=10, result_file=f"results/evaluation_results_{date}.csv")
-
+        csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, weighted_mrr, file_path)
