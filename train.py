@@ -5,6 +5,12 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from models import TransEUncertainty, DistMultUncertainty, ComplExUncertainty
 from csvEditor import csvEditor
+from pykeen.datasets import UMLS
+from pykeen.models import TransE, DistMult, ComplEx
+from pykeen.evaluation import LCWAEvaluationLoop
+from torch.optim import Adam
+from pykeen.training import SLCWATrainingLoop
+
 
 
 class KnowledgeGraphDataset(Dataset):
@@ -162,9 +168,9 @@ def train_and_evaluate(file_path, embedding_dim=50, batch_size=64, num_epochs=10
     
     # Initialize the model
     models = {
-        "TransE": TransEUncertainty(num_entities, num_relations, embedding_dim),
-        "DistMult": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-        "ComplEx": ComplExUncertainty(num_entities, num_relations, embedding_dim),
+        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
+        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
+        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
     }
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
     
@@ -208,7 +214,7 @@ def train_and_evaluate(file_path, embedding_dim=50, batch_size=64, num_epochs=10
         loss_model = total_loss / len(train_loader)
     
         print(f"\nEvaluating {name}...")
-        if name == "ComplEx":
+        if name == "ComplExUncertainty":
             mean_rank, mrr, hits_at_k, weighted_mrr, hits_at_1, hits_at_5 = evaluate_complex(models[name], dataset)
         else:
             mean_rank, mrr, hits_at_k, weighted_mrr, hits_at_1, hits_at_5 = evaluate(models[name], dataset)
@@ -217,3 +223,62 @@ def train_and_evaluate(file_path, embedding_dim=50, batch_size=64, num_epochs=10
         print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_k}, Weighted MRR: {weighted_mrr}")
         
         csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, weighted_mrr, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
+        
+    train_and_evaluate_normal_models(embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+    
+def train_and_evaluate_normal_models(embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
+    dataset = UMLS()
+    training = dataset.training
+    validation = dataset.validation
+    testing = dataset.testing
+    assert validation is not None
+    
+    model = TransE(triples_factory=training, embedding_dim=embedding_dim)
+    helper_for_normal_models(model, "TransE", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
+    
+    model = DistMult(triples_factory=training, embedding_dim=embedding_dim)
+    helper_for_normal_models(model, "DistMult", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
+    
+    model = ComplEx(triples_factory=training, embedding_dim=embedding_dim)
+    helper_for_normal_models(model, "ComplEx", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
+
+    
+def helper_for_normal_models(model, name, num_epochs, batch_size, result_file, embedding_dim, training, validation, testing):
+
+    model = model
+
+    optimizer = Adam(params=model.get_grad_params())
+
+    training_loop = SLCWATrainingLoop(
+        model=model,
+        triples_factory=training,
+        optimizer=optimizer,
+    )
+
+
+    losses_per_epoch = training_loop.train(
+        triples_factory=training,
+        num_epochs=num_epochs,
+        batch_size=batch_size,
+        callbacks="evaluation-loop",
+        callbacks_kwargs=dict(
+            prefix="validation",
+            factory=validation,
+        ),
+    )
+    
+    evaluation_loop = LCWAEvaluationLoop(
+    model=model,
+    triples_factory=testing,
+)
+
+    results = evaluation_loop.evaluate()
+    
+    mrr = results.get_metric('mean_reciprocal_rank')
+    hits_at_1 = results.get_metric('hits@1')
+    hits_at_5 = results.get_metric('hits@5')
+    hits_at_10 = results.get_metric('hits@10')
+    
+    
+    csvEditor.write_results_to_csv(result_file, name, "N/A", mrr, hits_at_1, hits_at_5, hits_at_10, "N/A", "UMLS", losses_per_epoch[-1], num_epochs, embedding_dim, batch_size, "N/A")
+    
