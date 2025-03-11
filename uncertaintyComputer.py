@@ -90,10 +90,8 @@ def add_confidence_score_based_on_dataset_average():
     df_average = df_transE.merge(df_distMult, on=['head', 'relation', 'tail'], how='inner', suffixes=('_transE', '_distMult')) \
                .merge(df_complEx, on=['head', 'relation', 'tail'], how='inner')
 
-    # Rename the fourth column from df3 manually
     df_average.rename(columns={'confidence_score': 'confidence_score_complEx'}, inplace=True)
 
-    # Compute the average of the three D columns
     df_average['confidence_score_avg'] = df_average[['confidence_score_transE', 'confidence_score_distMult', 'confidence_score_complEx']].mean(axis=1)
     
     df_average.drop(columns=['confidence_score_transE', 'confidence_score_distMult', 'confidence_score_complEx'], inplace=True)
@@ -124,6 +122,32 @@ def compute_confidence_score(model, dataset):
     df["confidence_score"] = final_confidence_scores
     
     return df
+   
+def add_confidence_score_based_on_dataset_agreement():
+    dataset = ds.UMLS()
+    
+    threshold = 0.5
+    
+    df_transE = compute_confidence_score(TransE, dataset)
+    df_distMult = compute_confidence_score(DistMult, dataset)
+    df_complEx = compute_confidence_score(ComplEx, dataset)
+        
+    df_all = df_transE.merge(df_distMult, on=['head', 'relation', 'tail'], how='inner', suffixes=('_transE', '_distMult')) \
+               .merge(df_complEx, on=['head', 'relation', 'tail'], how='inner')
+               
+    df_all.rename(columns={'confidence_score': 'confidence_score_complEx'}, inplace=True)
+    
+    df_all['confidence_score'] = np.nan
+    
+    df_all['confidence_score'] = df_all.apply(lambda row: max(row['confidence_score_complEx'], row['confidence_score_distMult'], row['confidence_score_transE']) \
+        if row['confidence_score_complEx'] >= threshold and row['confidence_score_distMult'] >= threshold \
+            or row['confidence_score_complEx'] >= threshold and row['confidence_score_transE'] >= threshold \
+                or row['confidence_score_distMult'] >= threshold and row['confidence_score_transE'] >= threshold  
+        else min(row['confidence_score_complEx'], row['confidence_score_distMult'], row['confidence_score_transE']), axis=1)
+    
+    df_all.drop(columns=['confidence_score_transE', 'confidence_score_distMult', 'confidence_score_complEx'], inplace=True)
+    
+    csvEditor.save_to_csv(df_all, dataset, 1, "agree")
     
 """    
 addConfidenceScoreRandomly(0.1, 0.2)
@@ -132,7 +156,7 @@ addConfidenceScoreBasedOnDataset(DistMult, "DistMult")
 addConfidenceScoreBasedOnDataset(ComplEx, "ComplEx")
 """    
 
-add_confidence_score_based_on_dataset_average()
+add_confidence_score_based_on_dataset_agreement()
     
 # 1. compute the scores for all three models and take the average (done)
 # 2. compute the scores for all models and if they all give high scores then use the average high score, else use a lower score
