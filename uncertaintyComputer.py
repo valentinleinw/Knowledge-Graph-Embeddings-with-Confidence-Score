@@ -10,7 +10,7 @@ from csvEditor import csvEditor
 
 
 # for now using UMLS because it is pretty small
-def addConfidenceScoreRandomly(begin=0, end=1):
+def add_confidence_score_randomly(begin=0, end=1):
     dataset = ds.UMLS()
     triples = np.concatenate([
         dataset.training.mapped_triples.numpy(),
@@ -26,7 +26,7 @@ def addConfidenceScoreRandomly(begin=0, end=1):
     csvEditor.save_to_csv(df, dataset, 0, "TransE", begin, end)
     
 # I found the function in this paper: https://arxiv.org/pdf/1811.10667
-def getEmbeddings(dataset, model_class):
+def get_embeddings(dataset, model_class):
     triples_factory = dataset.training
     
     model = model_class(
@@ -54,7 +54,7 @@ def getEmbeddings(dataset, model_class):
     
     return entity_embedding_tensor.detach().numpy(), relation_embedding_tensor.detach().numpy()
 
-def addConfidenceScoreBasedOnDataset(model_class, model_name):
+def add_confidence_score_based_on_dataset(model_class, model_name):
     dataset = ds.UMLS()
     triples = np.concatenate([
         dataset.training.mapped_triples.numpy(),
@@ -62,7 +62,7 @@ def addConfidenceScoreBasedOnDataset(model_class, model_name):
         dataset.testing.mapped_triples.numpy()
     ], axis=0)
     
-    entity_embeddings, relation_embeddings = getEmbeddings(dataset, model_class)
+    entity_embeddings, relation_embeddings = get_embeddings(dataset, model_class)
     
     head_embeddings = entity_embeddings[triples[:, 0]] 
     relation_embeddings = relation_embeddings[triples[:, 1]]
@@ -80,10 +80,62 @@ def addConfidenceScoreBasedOnDataset(model_class, model_name):
     
     csvEditor.save_to_csv(df, dataset, 1, model_name)
 
+def add_confidence_score_based_on_dataset_average():
+    dataset = ds.UMLS()
     
+    df_transE = compute_confidence_score(TransE, dataset)
+    df_distMult = compute_confidence_score(DistMult, dataset)
+    df_complEx = compute_confidence_score(ComplEx, dataset)
+        
+    df_average = df_transE.merge(df_distMult, on=['head', 'relation', 'tail'], how='inner', suffixes=('_transE', '_distMult')) \
+               .merge(df_complEx, on=['head', 'relation', 'tail'], how='inner')
+
+    # Rename the fourth column from df3 manually
+    df_average.rename(columns={'confidence_score': 'confidence_score_complEx'}, inplace=True)
+
+    # Compute the average of the three D columns
+    df_average['confidence_score_avg'] = df_average[['confidence_score_transE', 'confidence_score_distMult', 'confidence_score_complEx']].mean(axis=1)
+    
+    df_average.drop(columns=['confidence_score_transE', 'confidence_score_distMult', 'confidence_score_complEx'], inplace=True)
+    
+    csvEditor.save_to_csv(df_average, dataset, 1, "average")
+    
+def compute_confidence_score(model, dataset):
+    triples = np.concatenate([
+        dataset.training.mapped_triples.numpy(),
+        dataset.validation.mapped_triples.numpy(),
+        dataset.testing.mapped_triples.numpy()
+    ], axis=0)
+    
+    entity_embeddings, relation_embeddings = get_embeddings(dataset, model)
+    
+    head_embeddings = entity_embeddings[triples[:, 0]] 
+    relation_embeddings = relation_embeddings[triples[:, 1]]
+    tail_embeddings = entity_embeddings[triples[:, 2]]
+    
+    combined_embeddings = np.multiply(head_embeddings, tail_embeddings)
+    
+    # Multiply the result with the relation embeddings (element-wise multiplication)
+    final_confidence_scores = np.multiply(combined_embeddings, relation_embeddings).sum(axis=1)
+    final_confidence_scores = np.abs(final_confidence_scores)
+    final_confidence_scores = (final_confidence_scores - np.min(final_confidence_scores)) / (np.max(final_confidence_scores) - np.min(final_confidence_scores))
+    
+    df = pd.DataFrame(triples, columns=["head", "relation", "tail"])
+    df["confidence_score"] = final_confidence_scores
+    
+    return df
+    
+"""    
 addConfidenceScoreRandomly(0.1, 0.2)
 addConfidenceScoreBasedOnDataset(TransE, "TransE")
 addConfidenceScoreBasedOnDataset(DistMult, "DistMult")
 addConfidenceScoreBasedOnDataset(ComplEx, "ComplEx")
+"""    
+
+add_confidence_score_based_on_dataset_average()
     
-    
+# 1. compute the scores for all three models and take the average (done)
+# 2. compute the scores for all models and if they all give high scores then use the average high score, else use a lower score
+# 3. find entities and relations that appear the most and give the confidence score based on the appearance(not really a good way if we want to have a completely new dataset)
+# 4. use PageRank for confidence score
+# 5. use logical rules ( -> for example first use the confidence score computed by the models and then modify the scores based on this rules)
