@@ -3,21 +3,14 @@ import csv
 
 class csvEditor():
     @staticmethod
-    def save_to_csv(df, dataset, methodType: int, model="", begin=None, end=None):
+    def save_to_csv(df, dataset, method_name, model="", range=""):
         dataset_name = dataset.__class__.__name__  # Get dataset name dynamically
         
-        methodName = ""
         range = ""
-        
-        if methodType == 0:
-            methodName = "random"
-            range = f"_from_{begin}_to_{end}"
-        elif methodType == 1:
-            methodName = "compute"
 
         # Define file path for saving
         folder_path = "datasets"
-        file_path = os.path.join(folder_path, f"{dataset_name}_{methodName}{range}_{model}_with_confidence.csv")
+        file_path = os.path.join(folder_path, f"{dataset_name}_{method_name}_{range}_{model}_with_confidence.csv")
 
         # Ensure the directory exists
         os.makedirs(folder_path, exist_ok=True)
