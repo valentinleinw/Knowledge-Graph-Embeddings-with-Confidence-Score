@@ -22,8 +22,10 @@ def add_confidence_score_randomly(begin=0, end=1):
         
     # Generate random confidence scores and add to DataFrame
     df["confidence_score"] = np.random.rand(triples.shape[0]) * (end - begin) + begin
+    
+    range = "[" + str(begin) + ";" + str(end) + "]"
 
-    csvEditor.save_to_csv(df, dataset, 0, "TransE", begin, end)
+    csvEditor.save_to_csv(df, dataset, "random", range=range)
     
 def add_confidence_score_based_on_appearances():
     dataset = ds.UMLS()
@@ -53,7 +55,7 @@ def add_confidence_score_based_on_appearances():
     # Normalize scores
     df['confidence_score'] = (df['confidence_score'] - df['confidence_score'].min()) / (df['confidence_score'].max() - df['confidence_score'].min())
             
-    csvEditor.save_to_csv(df, dataset, 1)
+    csvEditor.save_to_csv(df, dataset, "appearances")
     
 # extreme uniform distribution of confidence scores, not good for real life examples
 def add_confidence_score_based_on_appearances_ranked():
@@ -83,7 +85,7 @@ def add_confidence_score_based_on_appearances_ranked():
     
     df.drop(columns=['raw_confidence'], inplace=True)
     
-    csvEditor.save_to_csv(df, dataset, 1)
+    csvEditor.save_to_csv(df, dataset, "ranked_appearances")
     
 
 # I found the function in this paper: https://arxiv.org/pdf/1811.10667
@@ -115,7 +117,7 @@ def get_embeddings(dataset, model_class):
     
     return entity_embedding_tensor.detach().numpy(), relation_embedding_tensor.detach().numpy()
 
-def add_confidence_score_based_on_dataset(model_class, model_name):
+def add_confidence_score_based_on_model(model_class, model_name):
     dataset = ds.UMLS()
     triples = np.concatenate([
         dataset.training.mapped_triples.numpy(),
@@ -139,7 +141,7 @@ def add_confidence_score_based_on_dataset(model_class, model_name):
     df = pd.DataFrame(triples, columns=["head", "relation", "tail"])
     df["confidence_score"] = final_confidence_scores
     
-    csvEditor.save_to_csv(df, dataset, 1, model_name)
+    csvEditor.save_to_csv(df, dataset, "model", model_name)
 
 def add_confidence_score_based_on_dataset_average():
     dataset = ds.UMLS()
@@ -157,7 +159,7 @@ def add_confidence_score_based_on_dataset_average():
     
     df_average.drop(columns=['confidence_score_transE', 'confidence_score_distMult', 'confidence_score_complEx'], inplace=True)
     
-    csvEditor.save_to_csv(df_average, dataset, 1, "average")
+    csvEditor.save_to_csv(df_average, dataset, "average")
     
 def compute_confidence_score(model, dataset):
     triples = np.concatenate([
@@ -208,7 +210,7 @@ def add_confidence_score_based_on_dataset_agreement():
     
     df_all.drop(columns=['confidence_score_transE', 'confidence_score_distMult', 'confidence_score_complEx'], inplace=True)
     
-    csvEditor.save_to_csv(df_all, dataset, 1, "agree")
+    csvEditor.save_to_csv(df_all, dataset, "agree")
     
 """    
 addConfidenceScoreRandomly(0.1, 0.2)
