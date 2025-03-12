@@ -1,13 +1,12 @@
 import pykeen.datasets as ds
 import pandas as pd
-import os 
 import numpy as np 
 from pykeen.models import TransE, DistMult, ComplEx
 from pykeen.pipeline import pipeline
 from pykeen.models import ERModel
 from pykeen.nn.representation import Embedding
 from csvEditor import csvEditor
-
+from collections import defaultdict
 
 # for now using UMLS because it is pretty small
 def add_confidence_score_randomly(begin=0, end=1):
@@ -86,7 +85,6 @@ def add_confidence_score_based_on_appearances_ranked():
     df.drop(columns=['raw_confidence'], inplace=True)
     
     csvEditor.save_to_csv(df, dataset, "ranked_appearances")
-    
 
 # I found the function in this paper: https://arxiv.org/pdf/1811.10667
 def get_embeddings(dataset, model_class):
@@ -150,16 +148,21 @@ def add_confidence_score_based_on_dataset_average():
     df_distMult = compute_confidence_score(DistMult, dataset)
     df_complEx = compute_confidence_score(ComplEx, dataset)
         
-    df_average = df_transE.merge(df_distMult, on=['head', 'relation', 'tail'], how='inner', suffixes=('_transE', '_distMult')) \
-               .merge(df_complEx, on=['head', 'relation', 'tail'], how='inner')
-
-    df_average.rename(columns={'confidence_score': 'confidence_score_complEx'}, inplace=True)
-
-    df_average['confidence_score_avg'] = df_average[['confidence_score_transE', 'confidence_score_distMult', 'confidence_score_complEx']].mean(axis=1)
-    
-    df_average.drop(columns=['confidence_score_transE', 'confidence_score_distMult', 'confidence_score_complEx'], inplace=True)
+    df_average = compute_avg_confidence_score(df_transE, df_distMult, df_complEx)
     
     csvEditor.save_to_csv(df_average, dataset, "average")
+    
+def compute_avg_confidence_score(df_transE, df_distMult, df_complEx):
+        df_average = df_transE.merge(df_distMult, on=['head', 'relation', 'tail'], how='inner', suffixes=('_transE', '_distMult')) \
+               .merge(df_complEx, on=['head', 'relation', 'tail'], how='inner')
+
+        df_average.rename(columns={'confidence_score': 'confidence_score_complEx'}, inplace=True)
+
+        df_average['confidence_score'] = df_average[['confidence_score_transE', 'confidence_score_distMult', 'confidence_score_complEx']].mean(axis=1)
+        
+        df_average.drop(columns=['confidence_score_transE', 'confidence_score_distMult', 'confidence_score_complEx'], inplace=True)
+        
+        return df_average
     
 def compute_confidence_score(model, dataset):
     triples = np.concatenate([
@@ -211,7 +214,119 @@ def add_confidence_score_based_on_dataset_agreement():
     df_all.drop(columns=['confidence_score_transE', 'confidence_score_distMult', 'confidence_score_complEx'], inplace=True)
     
     csvEditor.save_to_csv(df_all, dataset, "agree")
+   
+# might redo some logical rules, e.g. similarity rule because leads to many same confidence scores
+def add_confidence_score_logical_rules():
     
+    dataset = ds.UMLS()
+    
+    df_transE = compute_confidence_score(TransE, dataset)
+    df_distMult = compute_confidence_score(DistMult, dataset)
+    df_complEx = compute_confidence_score(ComplEx, dataset)
+        
+    df = compute_avg_confidence_score(df_transE, df_distMult, df_complEx)
+    
+    triples = {}
+    for _, row in df.iterrows():
+        triples[(row["head"], row["tail"])] = row["confidence_score"]
+    
+    def apply_transitivity_rule(df, triples):
+        for index, row in df.iterrows():
+            head, tail = row["head"], row["tail"]
+            if (head, tail) in triples:  # Check if direct connection exists
+                direct_conf = triples[(head, tail)]
+                
+                # Look for transitive relations
+                for middle_entity in df['head']:
+                    if (tail, middle_entity) in triples:  # If there's a second hop
+                        transitive_conf = triples.get((tail, middle_entity), 0)
+                        new_conf = min(direct_conf, transitive_conf)
+                        # Boost the confidence of the third entity connection
+                        triples[(head, middle_entity)] = max(triples.get((head, middle_entity), 0), new_conf)
+
+        # Update the dataframe with new confidence scores
+        for (h, t), conf in triples.items():
+            df.loc[(df["head"] == h) & (df["tail"] == t), "confidence_score"] = conf
+        return df
+    
+    def apply_similarity_rule(df):
+        head_dict = defaultdict(list)
+
+        # Populate the dictionary with head -> (tail, confidence)
+        for _, row in df.iterrows():
+            head_dict[row["head"]].append((row["tail"], row["confidence_score"]))
+        
+        # Boost confidence for similar head entities
+        for head, connections in head_dict.items():
+            for i in range(len(connections)):
+                for j in range(i + 1, len(connections)):
+                    tail_i, conf_i = connections[i]
+                    tail_j, conf_j = connections[j]
+                    
+                    # Apply rule: Boost the confidence if both share the same head
+                    new_conf = max(conf_i, conf_j)
+                    if new_conf < 1:
+                        df.loc[(df["head"] == head) & (df["tail"] == tail_j), "confidence_score"] = new_conf
+                        df.loc[(df["head"] == head) & (df["tail"] == tail_i), "confidence_score"] = new_conf
+        return df
+    
+    def apply_frequency_rule(df):
+        entity_freq = pd.concat([df['head'], df['tail']]).value_counts()
+
+        # Propagate confidence based on frequency
+        for _, row in df.iterrows():
+            head_freq = entity_freq.get(row["head"], 0)
+            tail_freq = entity_freq.get(row["tail"], 0)
+            
+            # If the entities appear frequently, boost the confidence score
+            if head_freq > 1 and tail_freq > 1:
+                df.loc[(df["head"] == row["head"]) & (df["tail"] == row["tail"]), "confidence_score"] *= 1.2  # Boost by 20%
+                df["confidence_score"] = df["confidence_score"].clip(upper=1)  # Ensure confidence doesn't exceed 1
+        return df
+    
+    def apply_symmetry_rule(df, triples):
+        # Iterate over each row in the dataset
+        for index, row in df.iterrows():
+            head, tail = row["head"], row["tail"]
+            if (head, tail) in triples:
+                direct_conf = triples[(head, tail)]
+                
+                # Check if the inverse (tail -> head) exists in the triples dictionary
+                if (tail, head) in triples:
+                    inverse_conf = triples[(tail, head)]
+                    
+                    # If the inverse exists and has a lower confidence, boost it to match the direct relation
+                    if inverse_conf < direct_conf:
+                        triples[(tail, head)] = direct_conf  # Set the same confidence for the inverse
+                    else:
+                        triples[(head, tail)] = inverse_conf
+
+        
+        # Update the DataFrame with new confidence scores for inverse relations
+        for (h, t), conf in triples.items():
+            df.loc[(df["head"] == h) & (df["tail"] == t), "confidence_score"] = conf
+            
+        return df
+    
+    def apply_all_rules(df, triples):
+        # Apply all logical rules including symmetry
+        df = apply_transitivity_rule(df, triples)  # Apply transitivity rule
+        df = apply_similarity_rule(df)  # Apply similarity rule
+        df = apply_frequency_rule(df)  # Apply frequency rule
+        df = apply_symmetry_rule(df, triples)  # Apply symmetry rule
+
+        # Normalize confidence scores after applying all rules
+        df['confidence_score'] = (df['confidence_score'] - df['confidence_score'].min()) / (df['confidence_score'].max() - df['confidence_score'].min())
+        
+        return df
+    
+    df = apply_all_rules(df, triples)
+    
+    csvEditor.save_to_csv(df, dataset, "logical")
+    
+    
+
+
 """    
 addConfidenceScoreRandomly(0.1, 0.2)
 addConfidenceScoreBasedOnDataset(TransE, "TransE")
@@ -223,7 +338,8 @@ addConfidenceScoreBasedOnDataset(ComplEx, "ComplEx")
 # 1. compute the scores for all three models and take the average (done)
 # 2. compute the scores for all models and if they all give high scores then use the average high score, else use a lower score (done)
 # 3. find entities and relations that appear the most and give the confidence score based on the appearance (not really a good way if we want to have a completely new dataset)
-# 4. use PageRank for confidence score
+# --> more or less done
+# 4. use PageRank for confidence score --> for now do not know if this will work
 # 5. use logical rules ( -> for example first use the confidence score computed by the models and then modify the scores based on this rules)
 
-add_confidence_score_based_on_appearances_ranked()
+add_confidence_score_logical_rules()
