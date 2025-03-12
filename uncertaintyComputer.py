@@ -25,6 +25,67 @@ def add_confidence_score_randomly(begin=0, end=1):
 
     csvEditor.save_to_csv(df, dataset, 0, "TransE", begin, end)
     
+def add_confidence_score_based_on_appearances():
+    dataset = ds.UMLS()
+    triples = np.concatenate([
+        dataset.training.mapped_triples.numpy(),
+        dataset.validation.mapped_triples.numpy(),
+        dataset.testing.mapped_triples.numpy()
+    ], axis=0)
+    
+    df = pd.DataFrame(triples, columns=["head", "relation", "tail"])
+    
+    # Count occurrences of (h, r), (r, t), and (h, t)
+    hr_counts = df.groupby(['head', 'relation']).size().to_dict()
+    rt_counts = df.groupby(['relation', 'tail']).size().to_dict()
+    ht_counts = df.groupby(['head', 'tail']).size().to_dict()  
+
+    # Compute confidence scores
+    def compute_confidence(h, r, t):
+        N_hr = hr_counts.get((h, r), 1)  # Default to 1 to avoid division by zero
+        N_rt = rt_counts.get((r, t), 1)
+        N_ht = ht_counts.get((h, t), 1)
+    
+        return 1 / (N_hr + N_rt + N_ht)
+    
+    df['confidence_score'] = df.apply(lambda row: compute_confidence(row['head'], row['relation'], row['tail']), axis=1)
+
+    # Normalize scores
+    df['confidence_score'] = (df['confidence_score'] - df['confidence_score'].min()) / (df['confidence_score'].max() - df['confidence_score'].min())
+            
+    csvEditor.save_to_csv(df, dataset, 1)
+    
+# extreme uniform distribution of confidence scores, not good for real life examples
+def add_confidence_score_based_on_appearances_ranked():
+    dataset = ds.UMLS()
+    triples = np.concatenate([
+        dataset.training.mapped_triples.numpy(),
+        dataset.validation.mapped_triples.numpy(),
+        dataset.testing.mapped_triples.numpy()
+    ], axis=0)
+    
+    df = pd.DataFrame(triples, columns=["head", "relation", "tail"])
+    
+    head_counts = df['head'].value_counts().to_dict()
+    tail_counts = df['tail'].value_counts().to_dict()
+    relation_counts = df['relation'].value_counts().to_dict()
+    
+    def compute_confidence(h, r, t):
+        log_h = np.log1p(head_counts.get(h, 1))
+        log_t = np.log1p(tail_counts.get(t, 1))
+        log_r = np.log1p(relation_counts.get(r, 1))
+        
+        return (log_h + log_t + log_r) / 3  # Averaged for smoothing
+
+    df['raw_confidence'] = df.apply(lambda row: compute_confidence(row['head'], row['relation'], row['tail']), axis=1)
+        
+    df['confidence'] = df['raw_confidence'].rank(method='max', pct=True)
+    
+    df.drop(columns=['raw_confidence'], inplace=True)
+    
+    csvEditor.save_to_csv(df, dataset, 1)
+    
+
 # I found the function in this paper: https://arxiv.org/pdf/1811.10667
 def get_embeddings(dataset, model_class):
     triples_factory = dataset.training
@@ -156,10 +217,11 @@ addConfidenceScoreBasedOnDataset(DistMult, "DistMult")
 addConfidenceScoreBasedOnDataset(ComplEx, "ComplEx")
 """    
 
-add_confidence_score_based_on_dataset_agreement()
     
 # 1. compute the scores for all three models and take the average (done)
-# 2. compute the scores for all models and if they all give high scores then use the average high score, else use a lower score
-# 3. find entities and relations that appear the most and give the confidence score based on the appearance(not really a good way if we want to have a completely new dataset)
+# 2. compute the scores for all models and if they all give high scores then use the average high score, else use a lower score (done)
+# 3. find entities and relations that appear the most and give the confidence score based on the appearance (not really a good way if we want to have a completely new dataset)
 # 4. use PageRank for confidence score
 # 5. use logical rules ( -> for example first use the confidence score computed by the models and then modify the scores based on this rules)
+
+add_confidence_score_based_on_appearances_ranked()
