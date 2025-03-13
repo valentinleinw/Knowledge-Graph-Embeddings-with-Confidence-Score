@@ -9,8 +9,7 @@ from csvEditor import csvEditor
 from collections import defaultdict
 
 # for now using UMLS because it is pretty small
-def add_confidence_score_randomly(begin=0, end=1):
-    dataset = ds.UMLS()
+def add_confidence_score_randomly(dataset, begin=0, end=1):
     triples = np.concatenate([
         dataset.training.mapped_triples.numpy(),
         dataset.validation.mapped_triples.numpy(),
@@ -26,8 +25,7 @@ def add_confidence_score_randomly(begin=0, end=1):
 
     csvEditor.save_to_csv(df, dataset, "random", range=range)
     
-def add_confidence_score_based_on_appearances():
-    dataset = ds.UMLS()
+def add_confidence_score_based_on_appearances(dataset):
     triples = np.concatenate([
         dataset.training.mapped_triples.numpy(),
         dataset.validation.mapped_triples.numpy(),
@@ -57,8 +55,7 @@ def add_confidence_score_based_on_appearances():
     csvEditor.save_to_csv(df, dataset, "appearances")
     
 # extreme uniform distribution of confidence scores, not good for real life examples
-def add_confidence_score_based_on_appearances_ranked():
-    dataset = ds.UMLS()
+def add_confidence_score_based_on_appearances_ranked(dataset):
     triples = np.concatenate([
         dataset.training.mapped_triples.numpy(),
         dataset.validation.mapped_triples.numpy(),
@@ -115,8 +112,7 @@ def get_embeddings(dataset, model_class):
     
     return entity_embedding_tensor.detach().numpy(), relation_embedding_tensor.detach().numpy()
 
-def add_confidence_score_based_on_model(model_class, model_name):
-    dataset = ds.UMLS()
+def add_confidence_score_based_on_model(dataset, model_class, model_name):
     triples = np.concatenate([
         dataset.training.mapped_triples.numpy(),
         dataset.validation.mapped_triples.numpy(),
@@ -141,9 +137,7 @@ def add_confidence_score_based_on_model(model_class, model_name):
     
     csvEditor.save_to_csv(df, dataset, "model", model_name)
 
-def add_confidence_score_based_on_dataset_average():
-    dataset = ds.UMLS()
-    
+def add_confidence_score_based_on_dataset_average(dataset):    
     df_transE = compute_confidence_score(TransE, dataset)
     df_distMult = compute_confidence_score(DistMult, dataset)
     df_complEx = compute_confidence_score(ComplEx, dataset)
@@ -189,8 +183,8 @@ def compute_confidence_score(model, dataset):
     
     return df
    
-def add_confidence_score_based_on_dataset_agreement():
-    dataset = ds.UMLS()
+def add_confidence_score_based_on_dataset_agreement(dataset):
+    dataset
     
     threshold = 0.5
     
@@ -216,10 +210,8 @@ def add_confidence_score_based_on_dataset_agreement():
     csvEditor.save_to_csv(df_all, dataset, "agree")
    
 # might redo some logical rules, e.g. similarity rule because leads to many same confidence scores
-def add_confidence_score_logical_rules():
-    
-    dataset = ds.UMLS()
-    
+def add_confidence_score_logical_rules(dataset):
+        
     df_transE = compute_confidence_score(TransE, dataset)
     df_distMult = compute_confidence_score(DistMult, dataset)
     df_complEx = compute_confidence_score(ComplEx, dataset)
