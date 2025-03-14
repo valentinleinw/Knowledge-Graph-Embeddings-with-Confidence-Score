@@ -6,8 +6,6 @@ class csvEditor():
     def save_to_csv(df, dataset, method_name, model="", range=""):
         dataset_name = dataset.__class__.__name__  # Get dataset name dynamically
         
-        range = ""
-
         # Define file path for saving
         folder_path = "datasets"
         file_path = os.path.join(folder_path, f"{dataset_name}_{method_name}_{range}_{model}_with_confidence.csv")
