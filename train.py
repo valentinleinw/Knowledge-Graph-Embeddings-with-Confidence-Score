@@ -10,6 +10,7 @@ from pykeen.models import TransE, DistMult, ComplEx
 from pykeen.evaluation import LCWAEvaluationLoop
 from torch.optim import Adam
 from pykeen.training import SLCWATrainingLoop
+import pykeen.datasets as ds
 
 
 
@@ -204,7 +205,6 @@ def train_and_evaluate(file_path, embedding_dim=50, batch_size=64, num_epochs=10
         print(f"\nEvaluating {name}...")
         if name == "ComplExUncertainty":
             mean_rank, mrr, hits_at_k, weighted_mrr, hits_at_1, hits_at_5 = evaluate_complex(models[name], dataset)
-            print("COMPLEX")
         else:
             mean_rank, mrr, hits_at_k, weighted_mrr, hits_at_1, hits_at_5 = evaluate(models[name], dataset)
 
@@ -216,7 +216,7 @@ def train_and_evaluate(file_path, embedding_dim=50, batch_size=64, num_epochs=10
     train_and_evaluate_normal_models(embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
 def train_and_evaluate_normal_models(embedding_dim, batch_size, num_epochs, margin, result_file='evaluation_results.csv'):
-    dataset = UMLS()
+    dataset = ds.CoDExSmall()
     training = dataset.training
     validation = dataset.validation
     testing = dataset.testing
