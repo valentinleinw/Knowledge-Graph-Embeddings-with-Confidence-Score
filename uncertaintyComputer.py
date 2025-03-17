@@ -22,6 +22,8 @@ def add_confidence_score_randomly(dataset, begin=0, end=1):
     df["confidence_score"] = np.random.rand(triples.shape[0]) * (end - begin) + begin
     
     range = "[" + str(begin) + ";" + str(end) + "]"
+    
+    print(range)
 
     csvEditor.save_to_csv(df, dataset, "random", range=range)
     
@@ -77,14 +79,14 @@ def add_confidence_score_based_on_appearances_ranked(dataset):
 
     df['raw_confidence'] = df.apply(lambda row: compute_confidence(row['head'], row['relation'], row['tail']), axis=1)
         
-    df['confidence'] = df['raw_confidence'].rank(method='max', pct=True)
+    df['confidence_score'] = df['raw_confidence'].rank(method='max', pct=True)
     
     df.drop(columns=['raw_confidence'], inplace=True)
     
     csvEditor.save_to_csv(df, dataset, "ranked_appearances")
 
 # I found the function in this paper: https://arxiv.org/pdf/1811.10667
-def get_embeddings(dataset, model_class):
+def get_embeddings(dataset, model_class, num_epochs, batch_size, embedding_dim):
     triples_factory = dataset.training
     
     model = model_class(
@@ -98,6 +100,13 @@ def get_embeddings(dataset, model_class):
         training_loop="slcwa",  
         optimizer="adam",  
         loss="margin",  
+        training_kwargs={
+            'num_epochs': num_epochs,
+            'batch_size': batch_size,
+        },
+        model_kwargs={
+            'embedding_dim': embedding_dim,
+        }
     )
     
     assert isinstance(model, ERModel)
@@ -112,14 +121,14 @@ def get_embeddings(dataset, model_class):
     
     return entity_embedding_tensor.detach().numpy(), relation_embedding_tensor.detach().numpy()
 
-def add_confidence_score_based_on_model(dataset, model_class, model_name):
+def add_confidence_score_based_on_model(dataset, model_class, model_name, num_epochs, batch_size, embedding_dim):
     triples = np.concatenate([
         dataset.training.mapped_triples.numpy(),
         dataset.validation.mapped_triples.numpy(),
         dataset.testing.mapped_triples.numpy()
     ], axis=0)
     
-    entity_embeddings, relation_embeddings = get_embeddings(dataset, model_class)
+    entity_embeddings, relation_embeddings = get_embeddings(dataset, model_class, num_epochs, batch_size, embedding_dim)
     
     head_embeddings = entity_embeddings[triples[:, 0]] 
     relation_embeddings = relation_embeddings[triples[:, 1]]
@@ -137,10 +146,10 @@ def add_confidence_score_based_on_model(dataset, model_class, model_name):
     
     csvEditor.save_to_csv(df, dataset, "model", model_name)
 
-def add_confidence_score_based_on_dataset_average(dataset):    
-    df_transE = compute_confidence_score(TransE, dataset)
-    df_distMult = compute_confidence_score(DistMult, dataset)
-    df_complEx = compute_confidence_score(ComplEx, dataset)
+def add_confidence_score_based_on_dataset_average(dataset, num_epochs, batch_size, embedding_dim):    
+    df_transE = compute_confidence_score(TransE, dataset, num_epochs, batch_size, embedding_dim)
+    df_distMult = compute_confidence_score(DistMult, dataset, num_epochs, batch_size, embedding_dim)
+    df_complEx = compute_confidence_score(ComplEx, dataset, num_epochs, batch_size, embedding_dim)
         
     df_average = compute_avg_confidence_score(df_transE, df_distMult, df_complEx)
     
@@ -158,14 +167,14 @@ def compute_avg_confidence_score(df_transE, df_distMult, df_complEx):
         
         return df_average
     
-def compute_confidence_score(model, dataset):
+def compute_confidence_score(model, dataset, num_epochs, batch_size, embedding_dim):
     triples = np.concatenate([
         dataset.training.mapped_triples.numpy(),
         dataset.validation.mapped_triples.numpy(),
         dataset.testing.mapped_triples.numpy()
     ], axis=0)
     
-    entity_embeddings, relation_embeddings = get_embeddings(dataset, model)
+    entity_embeddings, relation_embeddings = get_embeddings(dataset, model, num_epochs, batch_size, embedding_dim)
     
     head_embeddings = entity_embeddings[triples[:, 0]] 
     relation_embeddings = relation_embeddings[triples[:, 1]]
@@ -183,14 +192,14 @@ def compute_confidence_score(model, dataset):
     
     return df
    
-def add_confidence_score_based_on_dataset_agreement(dataset):
+def add_confidence_score_based_on_dataset_agreement(dataset, num_epochs, batch_size, embedding_dim):
     dataset
     
     threshold = 0.5
     
-    df_transE = compute_confidence_score(TransE, dataset)
-    df_distMult = compute_confidence_score(DistMult, dataset)
-    df_complEx = compute_confidence_score(ComplEx, dataset)
+    df_transE = compute_confidence_score(TransE, dataset, num_epochs, batch_size, embedding_dim)
+    df_distMult = compute_confidence_score(DistMult, dataset, num_epochs, batch_size, embedding_dim)
+    df_complEx = compute_confidence_score(ComplEx, dataset, num_epochs, batch_size, embedding_dim)
         
     df_all = df_transE.merge(df_distMult, on=['head', 'relation', 'tail'], how='inner', suffixes=('_transE', '_distMult')) \
                .merge(df_complEx, on=['head', 'relation', 'tail'], how='inner')
@@ -334,4 +343,28 @@ addConfidenceScoreBasedOnDataset(ComplEx, "ComplEx")
 # 4. use PageRank for confidence score --> for now do not know if this will work
 # 5. use logical rules ( -> for example first use the confidence score computed by the models and then modify the scores based on this rules)
 
-add_confidence_score_logical_rules()
+dataset = ds.UMLS()
+"""
+add_confidence_score_randomly(dataset)
+
+add_confidence_score_randomly(dataset, begin=0.5)
+
+add_confidence_score_randomly(dataset, end=0.5)
+"""
+add_confidence_score_based_on_model(dataset, TransE, "TransE", 200, 256, 100)
+
+add_confidence_score_based_on_model(dataset, DistMult, "DistMult", 200, 256, 100)
+
+add_confidence_score_based_on_model(dataset, ComplEx, "ComplEx", 200, 256, 100)
+
+add_confidence_score_based_on_dataset_average(dataset, 200, 256, 100)
+
+add_confidence_score_based_on_dataset_agreement(dataset, 200, 256, 100)
+"""
+add_confidence_score_based_on_appearances(dataset)
+
+#add_confidence_score_based_on_appearances_ranked(dataset)
+
+#add_confidence_score_logical_rules(dataset)
+
+add_confidence_score_logical_rules(dataset)"""

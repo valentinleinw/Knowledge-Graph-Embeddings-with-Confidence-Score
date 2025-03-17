@@ -226,7 +226,7 @@ def train_and_evaluate(file_path, embedding_dim=50, batch_size=64, num_epochs=10
         
     train_and_evaluate_normal_models(embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
-def train_and_evaluate_normal_models(embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
+def train_and_evaluate_normal_models(embedding_dim, batch_size, num_epochs, margin, result_file='evaluation_results.csv'):
     dataset = UMLS()
     training = dataset.training
     validation = dataset.validation
