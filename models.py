@@ -56,5 +56,6 @@ class ComplExUncertainty(nn.Module):
     def loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
         pos_score = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         neg_score = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
-        pos_loss = confidence_scores * torch.clamp(margin - pos_score + neg_score, min=0)
-        return pos_loss.sum()
+
+        loss = confidence_scores * torch.clamp(margin - pos_score + neg_score, min=0)
+        return loss.mean() 

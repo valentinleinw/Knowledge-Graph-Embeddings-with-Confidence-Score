@@ -219,11 +219,11 @@ def add_confidence_score_based_on_dataset_agreement(dataset, num_epochs, batch_s
     csvEditor.save_to_csv(df_all, dataset, "agree")
    
 # might redo some logical rules, e.g. similarity rule because leads to many same confidence scores
-def add_confidence_score_logical_rules(dataset):
+def add_confidence_score_logical_rules(dataset, num_epochs, batch_size, embedding_dim):
         
-    df_transE = compute_confidence_score(TransE, dataset)
-    df_distMult = compute_confidence_score(DistMult, dataset)
-    df_complEx = compute_confidence_score(ComplEx, dataset)
+    df_transE = compute_confidence_score(TransE, dataset, num_epochs, batch_size, embedding_dim)
+    df_distMult = compute_confidence_score(DistMult, dataset, num_epochs, batch_size, embedding_dim)
+    df_complEx = compute_confidence_score(ComplEx, dataset, num_epochs, batch_size, embedding_dim)
         
     df = compute_avg_confidence_score(df_transE, df_distMult, df_complEx)
     
@@ -344,27 +344,30 @@ addConfidenceScoreBasedOnDataset(ComplEx, "ComplEx")
 # 5. use logical rules ( -> for example first use the confidence score computed by the models and then modify the scores based on this rules)
 
 dataset = ds.UMLS()
-"""
-add_confidence_score_randomly(dataset)
+dataset2 = ds.AristoV4()
+#dataset3 = ds.CN3l()
+dataset4 = ds.CoDExSmall()
+dataset5 = ds.DBpedia50()
+dataset6 = ds.Kinships()
 
-add_confidence_score_randomly(dataset, begin=0.5)
+add_confidence_score_randomly(dataset6)
 
-add_confidence_score_randomly(dataset, end=0.5)
-"""
-add_confidence_score_based_on_model(dataset, TransE, "TransE", 200, 256, 100)
+add_confidence_score_randomly(dataset6, begin=0.5)
 
-add_confidence_score_based_on_model(dataset, DistMult, "DistMult", 200, 256, 100)
+add_confidence_score_randomly(dataset6, end=0.5)
 
-add_confidence_score_based_on_model(dataset, ComplEx, "ComplEx", 200, 256, 100)
+add_confidence_score_based_on_model(dataset6, TransE, "TransE", 200, 1024, 500)
 
-add_confidence_score_based_on_dataset_average(dataset, 200, 256, 100)
+add_confidence_score_based_on_model(dataset6, DistMult, "DistMult", 200, 1024, 500)
 
-add_confidence_score_based_on_dataset_agreement(dataset, 200, 256, 100)
-"""
-add_confidence_score_based_on_appearances(dataset)
+add_confidence_score_based_on_model(dataset6, ComplEx, "ComplEx", 200, 1024, 500)
 
-#add_confidence_score_based_on_appearances_ranked(dataset)
+add_confidence_score_based_on_dataset_average(dataset6, 200, 1024, 500)
 
-#add_confidence_score_logical_rules(dataset)
+add_confidence_score_based_on_dataset_agreement(dataset6, 200, 1024, 500)
 
-add_confidence_score_logical_rules(dataset)"""
+add_confidence_score_based_on_appearances(dataset6)
+
+add_confidence_score_based_on_appearances_ranked(dataset6)
+
+add_confidence_score_logical_rules(dataset6, 200, 1024, 500)

@@ -105,56 +105,44 @@ def evaluate_complex(model, dataset, top_k=10):
     hits_at_1 = 0
     hits_at_5 = 0
 
-    # Extract the real and imaginary embeddings for entities and relations once
-    entity_re_embeddings = model.entity_re_embeddings.weight.data  # Real part of entity embeddings
-    entity_im_embeddings = model.entity_im_embeddings.weight.data  # Imaginary part of entity embeddings
-    relation_re_embeddings = model.relation_re_embeddings.weight.data  # Real part of relation embeddings
-    relation_im_embeddings = model.relation_im_embeddings.weight.data  # Imaginary part of relation embeddings
+    entity_re_embeddings = model.entity_re_embeddings.weight.data
+    entity_im_embeddings = model.entity_im_embeddings.weight.data
+    relation_re_embeddings = model.relation_re_embeddings.weight.data
+    relation_im_embeddings = model.relation_im_embeddings.weight.data
 
-    # Loop over all triples in the dataset
     for head, relation, tail, confidence in dataset:
-        # Get the embeddings for the head, relation, and tail (real and imaginary parts)
+        # Extract embeddings
         head_real, head_imag = entity_re_embeddings[head], entity_im_embeddings[head]
         relation_real, relation_imag = relation_re_embeddings[relation], relation_im_embeddings[relation]
-        tail_real, tail_imag = entity_re_embeddings[tail], entity_im_embeddings[tail]
 
-        scores = []
+        # Compute scores for all entities at once (vectorized)
+        all_scores = torch.sum(
+            (head_real * relation_real * entity_re_embeddings) +
+            (head_imag * relation_real * entity_im_embeddings) +
+            (head_real * relation_imag * entity_im_embeddings) -
+            (head_imag * relation_imag * entity_re_embeddings),
+            dim=1
+        )
 
-        # Compute scores for all entities as the tail
-        for t in range(len(dataset.entity_to_idx)):
-            # Get the real and imaginary embeddings of the candidate tail entity
-            tail_real_t = entity_re_embeddings[t]
-            tail_imag_t = entity_im_embeddings[t]
+        # Rank entities efficiently using PyTorch
+        sorted_indices = torch.argsort(all_scores, descending=True)
+        rank = (sorted_indices == tail).nonzero(as_tuple=True)[0].item() + 1  # Convert to 1-based rank
 
-            # Compute the ComplEx score using the interaction of real and imaginary parts
-            score = torch.norm(
-                head_real + relation_real - tail_real, p=2
-            ) + torch.norm(
-                head_imag + relation_real - tail_imag, p=2
-            )
-
-            scores.append(score.item())
-
-        # Rank the tail entity and compute the rank of the correct tail
-        ranked_entities = np.argsort(scores)
-        rank = np.where(ranked_entities == tail)[0][0] + 1  # +1 to account for 1-based rank
         ranks.append((rank, confidence))
 
-        # Check for Hits@1 and Hits@5
-        if rank <= 1:
-            hits_at_1 += 1
-        if rank <= 5:
-            hits_at_5 += 1
+        # Compute Hits@1 and Hits@5
+        hits_at_1 += (rank == 1)
+        hits_at_5 += (rank <= 5)
 
-    # Calculate Mean Rank, MRR, Hits@k, and Weighted MRR
+    # Compute Evaluation Metrics
     mean_rank = np.mean([rank for rank, _ in ranks])
     mrr = np.mean([1 / rank for rank, _ in ranks])
     hits_at_k = np.mean([1 if rank <= top_k else 0 for rank, _ in ranks])
     weighted_mrr = np.sum([1 / rank * conf for rank, conf in ranks]) / np.sum([conf for _, conf in ranks])
 
-    # Calculate Hits@1 and Hits@5
-    hits_at_1 = hits_at_1 / len(ranks)
-    hits_at_5 = hits_at_5 / len(ranks)
+    # Normalize Hits@1 and Hits@5
+    hits_at_1 /= len(ranks)
+    hits_at_5 /= len(ranks)
 
     return mean_rank, mrr, hits_at_k, weighted_mrr, hits_at_1, hits_at_5
 
@@ -216,6 +204,7 @@ def train_and_evaluate(file_path, embedding_dim=50, batch_size=64, num_epochs=10
         print(f"\nEvaluating {name}...")
         if name == "ComplExUncertainty":
             mean_rank, mrr, hits_at_k, weighted_mrr, hits_at_1, hits_at_5 = evaluate_complex(models[name], dataset)
+            print("COMPLEX")
         else:
             mean_rank, mrr, hits_at_k, weighted_mrr, hits_at_1, hits_at_5 = evaluate(models[name], dataset)
 
