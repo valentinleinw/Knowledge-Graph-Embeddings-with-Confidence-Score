@@ -58,46 +58,46 @@ def negative_sampling(triples, num_entities):
     return neg_triples
 
 # Step 4: Evaluation Metrics (Confidence-weighted)
-def evaluate(model, dataset, top_k=10):
+def evaluate(model, dataset, top_k=10, device='cpu'):
     model.eval()
+    
     ranks = []
     hits_at_1 = 0
     hits_at_5 = 0
+    
+    entity_embeddings = model.entity_embeddings.weight  # Get all entity embeddings
+    relation_embeddings = model.relation_embeddings.weight  # Get all relation embeddings
+    
+    entity_embeddings = entity_embeddings.to(device)
+    relation_embeddings = relation_embeddings.to(device)
+
     for head, relation, tail, confidence in dataset:
-        # Compute the scores for all entities as the tail
-        scores = []
-        for t in range(len(dataset.entity_to_idx)):
-            # Access embeddings using model.entity_embeddings and model.relation_embeddings
-            head_embedding = model.entity_embeddings(torch.tensor([head], dtype=torch.long))
-            relation_embedding = model.relation_embeddings(torch.tensor([relation], dtype=torch.long))
-            tail_embedding = model.entity_embeddings(torch.tensor([t], dtype=torch.long))
-            
-            # Calculate the score based on L1 norm (translation operation)
-            score = torch.norm(head_embedding + relation_embedding - tail_embedding, p=1).item()
-            scores.append(score)
+        head_embedding = entity_embeddings[head].unsqueeze(0)  # (1, d)
+        relation_embedding = relation_embeddings[relation].unsqueeze(0)  # (1, d)
+
+        # Compute scores for all entities in parallel
+        scores = torch.norm(head_embedding + relation_embedding - entity_embeddings, p=1, dim=1)  # (num_entities,)
+
+        # Get the rank of the correct tail entity
+        ranked_entities = torch.argsort(scores)  # Sort in ascending order
+        rank = (ranked_entities == tail).nonzero(as_tuple=True)[0].item() + 1  # Convert to 1-based rank
         
-        # Rank the tail entity and compute the rank of the correct tail
-        ranked_entities = np.argsort(scores)
-        rank = np.where(ranked_entities == tail)[0][0] + 1
         ranks.append((rank, confidence))
         
         # Check for Hits@1 and Hits@5
-        if rank <= 1:
-            hits_at_1 += 1
-        if rank <= 5:
-            hits_at_5 += 1
+        hits_at_1 += (rank == 1)
+        hits_at_5 += (rank <= 5)
+
+    # Convert to numpy for faster operations
+    ranks = np.array(ranks, dtype=np.float32)
+    mean_rank = np.mean(ranks[:, 0])
+    mrr = np.mean(1.0 / ranks[:, 0])
+    hits_at_k = np.mean(ranks[:, 0] <= top_k)
     
-    # Calculate Mean Rank, Mean Reciprocal Rank, and Hits@k
-    mean_rank = np.mean([rank for rank, _ in ranks])
-    mrr = np.mean([1 / rank for rank, _ in ranks])
-    hits_at_k = np.mean([1 if rank <= top_k else 0 for rank, _ in ranks])
-    weighted_mrr = np.sum([1 / rank * conf for rank, conf in ranks]) / np.sum([conf for _, conf in ranks])
-    
-    # Calculate Hits@1 and Hits@5
     hits_at_1 = hits_at_1 / len(ranks)
     hits_at_5 = hits_at_5 / len(ranks)
     
-    return mean_rank, mrr, hits_at_k, weighted_mrr, hits_at_1, hits_at_5
+    return mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5
 
 # Evaluation for ComplEx model
 def evaluate_complex(model, dataset, top_k=10):
@@ -139,13 +139,12 @@ def evaluate_complex(model, dataset, top_k=10):
     mean_rank = np.mean([rank for rank, _ in ranks])
     mrr = np.mean([1 / rank for rank, _ in ranks])
     hits_at_k = np.mean([1 if rank <= top_k else 0 for rank, _ in ranks])
-    weighted_mrr = np.sum([1 / rank * conf for rank, conf in ranks]) / np.sum([conf for _, conf in ranks])
 
     # Normalize Hits@1 and Hits@5
     hits_at_1 /= len(ranks)
     hits_at_5 /= len(ranks)
 
-    return mean_rank, mrr, hits_at_k, weighted_mrr, hits_at_1, hits_at_5
+    return mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5
 
 
 # Step 6: Main Training and Evaluation Loop (with writing results to CSV)
@@ -204,14 +203,14 @@ def train_and_evaluate(file_path, embedding_dim=50, batch_size=64, num_epochs=10
     
         print(f"\nEvaluating {name}...")
         if name == "ComplExUncertainty":
-            mean_rank, mrr, hits_at_k, weighted_mrr, hits_at_1, hits_at_5 = evaluate_complex(models[name], dataset)
+            mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5 = evaluate_complex(models[name], dataset)
         else:
-            mean_rank, mrr, hits_at_k, weighted_mrr, hits_at_1, hits_at_5 = evaluate(models[name], dataset)
+            mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5 = evaluate(models[name], dataset)
 
         # Print results
-        print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_k}, Weighted MRR: {weighted_mrr}")
+        print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_k}")
         
-        csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, weighted_mrr, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
+        csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
         
     train_and_evaluate_normal_models(embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
@@ -269,5 +268,5 @@ def helper_for_normal_models(model, name, num_epochs, batch_size, result_file, e
     hits_at_10 = results.get_metric('hits@10')
     
     
-    csvEditor.write_results_to_csv(result_file, name, "N/A", mrr, hits_at_1, hits_at_5, hits_at_10, "N/A", "UMLS", losses_per_epoch[-1], num_epochs, embedding_dim, batch_size, "N/A")
+    csvEditor.write_results_to_csv(result_file, name, "N/A", mrr, hits_at_1, hits_at_5, hits_at_10, "CoDexSmall", losses_per_epoch[-1], num_epochs, embedding_dim, batch_size, "N/A")
     
