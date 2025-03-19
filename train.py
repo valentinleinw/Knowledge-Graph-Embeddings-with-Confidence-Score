@@ -148,7 +148,7 @@ def evaluate_complex(model, dataset, top_k=10):
 
 
 # Step 6: Main Training and Evaluation Loop (with writing results to CSV)
-def train_and_evaluate(file_path, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
+def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
     # Load the dataset
     dataset = KnowledgeGraphDataset(file_path)
     num_entities = len(dataset.entities)
@@ -212,26 +212,26 @@ def train_and_evaluate(file_path, embedding_dim=50, batch_size=64, num_epochs=10
         
         csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
         
-    train_and_evaluate_normal_models(embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+    train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
-def train_and_evaluate_normal_models(embedding_dim, batch_size, num_epochs, margin, result_file='evaluation_results.csv'):
-    dataset = ds.CoDExSmall()
+def train_and_evaluate_normal_models(dataset, embedding_dim, batch_size, num_epochs, margin, result_file='evaluation_results.csv'):
+    dataset = dataset
     training = dataset.training
     validation = dataset.validation
     testing = dataset.testing
     assert validation is not None
     
     model = TransE(triples_factory=training, embedding_dim=embedding_dim)
-    helper_for_normal_models(model, "TransE", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
+    helper_for_normal_models(model, dataset.__class__.__name__, "TransE", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
     
     model = DistMult(triples_factory=training, embedding_dim=embedding_dim)
-    helper_for_normal_models(model, "DistMult", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
+    helper_for_normal_models(model,dataset.__class__.__name__, "DistMult", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
     
     model = ComplEx(triples_factory=training, embedding_dim=embedding_dim)
-    helper_for_normal_models(model, "ComplEx", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
+    helper_for_normal_models(model,dataset.__class__.__name__, "ComplEx", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
 
     
-def helper_for_normal_models(model, name, num_epochs, batch_size, result_file, embedding_dim, training, validation, testing):
+def helper_for_normal_models(model, dataset_name, name, num_epochs, batch_size, result_file, embedding_dim, training, validation, testing):
 
     model = model
 
@@ -268,5 +268,5 @@ def helper_for_normal_models(model, name, num_epochs, batch_size, result_file, e
     hits_at_10 = results.get_metric('hits@10')
     
     
-    csvEditor.write_results_to_csv(result_file, name, "N/A", mrr, hits_at_1, hits_at_5, hits_at_10, "CoDexSmall", losses_per_epoch[-1], num_epochs, embedding_dim, batch_size, "N/A")
+    csvEditor.write_results_to_csv(result_file, name, "N/A", mrr, hits_at_1, hits_at_5, hits_at_10, dataset_name, losses_per_epoch[-1], num_epochs, embedding_dim, batch_size, "N/A")
     

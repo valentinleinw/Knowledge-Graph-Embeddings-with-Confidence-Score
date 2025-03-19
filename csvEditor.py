@@ -60,7 +60,7 @@ class csvEditor():
                 head,  # Keep entity ID
                 relation,  # Keep relation ID
                 tail,  # Keep entity ID
-                confidence_scores[i]  # Confidence score
+                float(confidence_scores[i])  # Confidence score
             ])
 
         # Create DataFrame

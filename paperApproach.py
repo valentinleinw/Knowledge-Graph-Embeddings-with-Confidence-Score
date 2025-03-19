@@ -31,7 +31,8 @@ def compute_embeddings(dataset):
     result = pipeline(
         model='DistMult',
         dataset=dataset,
-        training_kwargs={'num_epochs': 5},
+        training_kwargs={'num_epochs': 100, 'batch_size': 256},
+        model_kwargs={'embedding_dim': 50,}
     )
     
     model = result.model
