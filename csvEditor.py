@@ -1,5 +1,6 @@
 import os
 import csv
+import pandas as pd
 
 class csvEditor():
     @staticmethod
@@ -47,3 +48,29 @@ class csvEditor():
                 "Hits@5": hits_at_5,
                 "Hits@10": hits_at_k,
             })
+            
+    @staticmethod
+    def save_to_csv_paper(dataset, confidence_scores, triples, approach):
+        confidence_scores = confidence_scores.detach().cpu().numpy()
+
+        # Prepare data for CSV
+        data = []
+        for i, (head, relation, tail) in enumerate(triples.tolist()):
+            data.append([
+                head,  # Keep entity ID
+                relation,  # Keep relation ID
+                tail,  # Keep entity ID
+                confidence_scores[i]  # Confidence score
+            ])
+
+        # Create DataFrame
+        df = pd.DataFrame(data, columns=["head", "relation", "tail", "confidence_score"])
+        
+        dataset_name = dataset.__class__.__name__
+        folder_path = "datasets"
+        file_path = os.path.join(folder_path, f"paper_{approach}_{dataset_name}.csv")
+        
+        os.makedirs(folder_path, exist_ok=True)
+
+        # Save to CSV
+        df.to_csv(file_path, index=False)

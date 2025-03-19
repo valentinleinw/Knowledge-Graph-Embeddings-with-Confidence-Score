@@ -324,8 +324,6 @@ def add_confidence_score_logical_rules(dataset, num_epochs, batch_size, embeddin
     df = apply_all_rules(df, triples)
     
     csvEditor.save_to_csv(df, dataset, "logical")
-    
-    
 
 
 """    
@@ -350,24 +348,24 @@ dataset4 = ds.CoDExSmall()
 dataset5 = ds.DBpedia50()
 dataset6 = ds.Kinships()
 
-add_confidence_score_randomly(dataset6)
+#add_confidence_score_randomly(dataset4)
 
-add_confidence_score_randomly(dataset6, begin=0.5)
+add_confidence_score_randomly(dataset4, begin=0.5)
 
-add_confidence_score_randomly(dataset6, end=0.5)
+add_confidence_score_randomly(dataset4, end=0.5)
 
-add_confidence_score_based_on_model(dataset6, TransE, "TransE", 200, 1024, 500)
+add_confidence_score_based_on_model(dataset4, TransE, "TransE", 200, 2048, 500)
 
-add_confidence_score_based_on_model(dataset6, DistMult, "DistMult", 200, 1024, 500)
+add_confidence_score_based_on_model(dataset4, DistMult, "DistMult", 200, 2048, 500)
 
-add_confidence_score_based_on_model(dataset6, ComplEx, "ComplEx", 200, 1024, 500)
+add_confidence_score_based_on_model(dataset4, ComplEx, "ComplEx", 200, 2048, 500)
 
-add_confidence_score_based_on_dataset_average(dataset6, 200, 1024, 500)
+add_confidence_score_based_on_dataset_average(dataset4, 200, 2048, 500)
 
-add_confidence_score_based_on_dataset_agreement(dataset6, 200, 1024, 500)
+add_confidence_score_based_on_dataset_agreement(dataset4, 200, 2048, 500)
 
-add_confidence_score_based_on_appearances(dataset6)
+add_confidence_score_based_on_appearances(dataset4)
 
-add_confidence_score_based_on_appearances_ranked(dataset6)
+add_confidence_score_based_on_appearances_ranked(dataset4)
 
-add_confidence_score_logical_rules(dataset6, 200, 1024, 500)
+add_confidence_score_logical_rules(dataset4, 200, 2048, 500)
