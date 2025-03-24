@@ -64,23 +64,20 @@ class ComplExUncertainty(nn.Module):
 class RotatEUncertainty(nn.Module):
     def __init__(self, num_entities, num_relations, embedding_dim):
         super(RotatEUncertainty, self).__init__()
-        self.entity_re_embeddings = nn.Embedding(num_entities, embedding_dim)
-        self.entity_im_embeddings = nn.Embedding(num_entities, embedding_dim)
-        self.relation_re_embeddings = nn.Embedding(num_relations, embedding_dim)
-        self.relation_im_embeddings = nn.Embedding(num_relations, embedding_dim)
+        self.entity_embeddings = nn.Embedding(num_entities, embedding_dim)
+        self.relation_embeddings = nn.Embedding(num_relations, embedding_dim)
 
     def forward(self, h, r, t):
-        # Get the real and imaginary embeddings of head, relation, and tail
-        head_real, head_imag = self.entity_re_embeddings(h), self.entity_im_embeddings(h)
-        tail_real, tail_imag = self.entity_re_embeddings(t), self.entity_im_embeddings(t)
-        relation_real, relation_imag = self.relation_re_embeddings(r), self.relation_im_embeddings(r)
+        # Get the real embeddings of head, relation, and tail
+        head_real = self.entity_embeddings(h)
+        tail_real = self.entity_embeddings(t)
+        relation_real = self.relation_embeddings(r)
 
-        # Perform rotation in the complex plane
-        rotated_tail_real = tail_real * torch.cos(relation_real) - tail_imag * torch.sin(relation_real)
-        rotated_tail_imag = tail_real * torch.sin(relation_real) + tail_imag * torch.cos(relation_imag)
+        # Rotate the head embedding by adding the relation embedding
+        rotated_head_real = head_real + relation_real  # This is the "rotation"
 
-        # Compute the score as the distance between head + relation and tail in complex space
-        score = torch.sum((head_real - rotated_tail_real)**2 + (head_imag - rotated_tail_imag)**2, dim=1)
+        # Compute the score as the L2 distance between the rotated head and tail
+        score = torch.sum((rotated_head_real - tail_real)**2, dim=1)
         return score
 
     def loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
@@ -88,6 +85,8 @@ class RotatEUncertainty(nn.Module):
         pos_score = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         neg_score = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
 
-        # Compute the loss with uncertainty (confidence scores)
-        loss = confidence_scores * torch.clamp(margin + pos_score - neg_score, min=0)
+        # Compute the margin-based loss with uncertainty (confidence scores)
+        loss = torch.max(confidence_scores * (pos_score - neg_score + margin), torch.tensor(0.0, device=pos_score.device))
+
+        # Return the mean loss
         return loss.mean()

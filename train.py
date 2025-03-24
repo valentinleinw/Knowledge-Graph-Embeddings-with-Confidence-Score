@@ -3,10 +3,9 @@ import torch.optim as optim
 import pandas as pd
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
-from models import TransEUncertainty, DistMultUncertainty, ComplExUncertainty
+from models import TransEUncertainty, DistMultUncertainty, ComplExUncertainty, RotatEUncertainty
 from csvEditor import csvEditor
-from pykeen.datasets import UMLS
-from pykeen.models import TransE, DistMult, ComplEx
+from pykeen.models import TransE, DistMult, ComplEx, RotatE
 from pykeen.evaluation import LCWAEvaluationLoop
 from torch.optim import Adam
 from pykeen.training import SLCWATrainingLoop
@@ -44,7 +43,7 @@ class KnowledgeGraphDataset(Dataset):
         head, relation, tail, confidence = self.triples[idx]
         return head, relation, tail, confidence
 
-# Step 3: Negative Sampling
+
 def negative_sampling(triples, num_entities):
     neg_triples = []
     for head, relation, tail, _ in triples:
@@ -57,7 +56,7 @@ def negative_sampling(triples, num_entities):
             neg_triples.append((head, relation, new_tail))
     return neg_triples
 
-# Step 4: Evaluation Metrics (Confidence-weighted)
+
 def evaluate(model, dataset, top_k=10, device='cpu'):
     model.eval()
     
@@ -146,8 +145,51 @@ def evaluate_complex(model, dataset, top_k=10):
 
     return mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5
 
+# evaluation for rotate
+def evaluate_rotate(model, dataset, top_k=10):
+    model.eval()
+    ranks = []
+    hits_at_1 = 0
+    hits_at_5 = 0
 
-# Step 6: Main Training and Evaluation Loop (with writing results to CSV)
+    # Extract entity and relation embeddings
+    entity_embeddings = model.entity_embeddings.weight.data
+    relation_embeddings = model.relation_embeddings.weight.data
+
+    for head, relation, tail, confidence in dataset:
+        # Extract embeddings
+        head_embedding = entity_embeddings[head]  # Real-valued embedding
+        relation_embedding = relation_embeddings[relation]  # Real-valued embedding
+        tail_embedding = entity_embeddings[tail]  # Real-valued embedding
+
+        # Compute the "rotated" head embedding: head + relation, representing the transformation
+        predicted_head_embedding = head_embedding + relation_embedding
+
+        # Compute scores for all entities at once (vectorized)
+        all_scores = torch.norm(predicted_head_embedding - entity_embeddings, dim=1)
+
+        # Rank entities efficiently using PyTorch
+        sorted_indices = torch.argsort(all_scores, descending=False)
+        rank = (sorted_indices == tail).nonzero(as_tuple=True)[0].item() + 1  # Convert to 1-based rank
+
+        ranks.append((rank, confidence))
+
+        # Compute Hits@1 and Hits@5
+        hits_at_1 += (rank == 1)
+        hits_at_5 += (rank <= 5)
+
+    # Compute Evaluation Metrics
+    mean_rank = np.mean([rank for rank, _ in ranks])
+    mrr = np.mean([1 / rank for rank, _ in ranks])
+    hits_at_k = np.mean([1 if rank <= top_k else 0 for rank, _ in ranks])
+
+    # Normalize Hits@1 and Hits@5
+    hits_at_1 /= len(ranks)
+    hits_at_5 /= len(ranks)
+
+    return mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5
+
+
 def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
     # Load the dataset
     dataset = KnowledgeGraphDataset(file_path)
@@ -159,6 +201,7 @@ def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=6
         "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
         "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
         "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
+        "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
     }
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
     
@@ -204,6 +247,8 @@ def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=6
         print(f"\nEvaluating {name}...")
         if name == "ComplExUncertainty":
             mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5 = evaluate_complex(models[name], dataset)
+        elif name == "RotatEUncertainty": 
+            mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5 = evaluate_rotate(models[name], dataset)
         else:
             mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5 = evaluate(models[name], dataset)
 
@@ -229,6 +274,9 @@ def train_and_evaluate_normal_models(dataset, embedding_dim, batch_size, num_epo
     
     model = ComplEx(triples_factory=training, embedding_dim=embedding_dim)
     helper_for_normal_models(model,dataset.__class__.__name__, "ComplEx", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
+    
+    model = RotatE(triples_factory=training, embedding_dim=embedding_dim)
+    helper_for_normal_models(model,dataset.__class__.__name__, "RotatE", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
 
     
 def helper_for_normal_models(model, dataset_name, name, num_epochs, batch_size, result_file, embedding_dim, training, validation, testing):
