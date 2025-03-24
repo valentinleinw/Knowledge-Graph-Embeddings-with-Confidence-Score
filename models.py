@@ -1,5 +1,6 @@
 import torch.nn as nn
 import torch
+import math
 
 
 class TransEUncertainty(nn.Module):
@@ -59,3 +60,38 @@ class ComplExUncertainty(nn.Module):
 
         loss = confidence_scores * torch.clamp(margin - pos_score + neg_score, min=0)
         return loss.mean() 
+    
+class RotatEUncertainty(nn.Module):
+    def __init__(self, num_entities, num_relations, embedding_dim):
+        super(RotatEUncertainty, self).__init__()
+        self.embedding_dim = embedding_dim // 2  # Since RotatE uses complex numbers
+        
+        self.entity_embeddings = nn.Embedding(num_entities, embedding_dim)
+        self.relation_embeddings = nn.Embedding(num_relations, embedding_dim)
+        
+        # Initialize embeddings
+        nn.init.uniform_(self.entity_embeddings.weight, -6/math.sqrt(self.embedding_dim), 6/math.sqrt(self.embedding_dim))
+        nn.init.uniform_(self.relation_embeddings.weight, -math.pi, math.pi)
+    
+    def forward(self, h, r, t):
+        head_embedding = self.entity_embeddings(h).view(-1, self.embedding_dim, 2)
+        relation_embedding = self.relation_embeddings(r).view(-1, self.embedding_dim, 2)
+        tail_embedding = self.entity_embeddings(t).view(-1, self.embedding_dim, 2)
+        
+        # Convert relation embeddings into rotation in complex space
+        cos_r, sin_r = relation_embedding[:, :, 0].cos(), relation_embedding[:, :, 0].sin()
+        head_real, head_imag = head_embedding[:, :, 0], head_embedding[:, :, 1]
+        tail_real, tail_imag = tail_embedding[:, :, 0], tail_embedding[:, :, 1]
+        
+        rotated_head_real = head_real * cos_r - head_imag * sin_r
+        rotated_head_imag = head_real * sin_r + head_imag * cos_r
+        
+        score = torch.norm(rotated_head_real - tail_real, p=2, dim=1) + torch.norm(rotated_head_imag - tail_imag, p=2, dim=1)
+        return score
+    
+    def loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
+        pos_score = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+        neg_score = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
+        
+        loss = confidence_scores * torch.clamp(margin + pos_score - neg_score, min=0)
+        return loss.mean()
