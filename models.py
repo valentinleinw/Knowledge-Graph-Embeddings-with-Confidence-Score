@@ -129,12 +129,3 @@ class RotatEUncertainty(nn.Module):
 
         # Return the mean loss
         return loss.mean()
-    
-    def objective_function(self, pos_triples, neg_triples, confidence_scores):
-        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
-        neg_scores = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
-
-        loss_pos = torch.mean(confidence_scores * (pos_scores - confidence_scores) ** 2)
-        loss_neg = torch.mean(F.relu(neg_scores) ** 2)
-
-        return loss_pos + loss_neg

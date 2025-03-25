@@ -1,20 +1,8 @@
 import train
-import time
 from datetime import datetime
+import pykeen.datasets as ds
 
 if __name__ == "__main__":
     current_datetime = datetime.now()
     date = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
-    train.train_and_evaluate("datasets/UMLS_compute_TransE_with_confidence.csv", embedding_dim=50, batch_size=64, num_epochs=10, result_file=f"results/evaluation_results_{date}.csv")
-
-    time.sleep(1)
-
-    current_datetime = datetime.now()
-    date = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
-    train.train_and_evaluate("datasets/UMLS_compute_DistMult_with_confidence.csv", embedding_dim=50, batch_size=64, num_epochs=10, result_file=f"results/evaluation_results_{date}.csv")
-
-    time.sleep(1)
-
-    current_datetime = datetime.now()
-    date = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
-    train.train_and_evaluate("datasets/UMLS_compute_ComplEx_with_confidence.csv", embedding_dim=50, batch_size=64, num_epochs=10, result_file=f"results/evaluation_results_{date}.csv")
+    train.train_and_evaluate("datasets/CoDExSmall_agree___with_confidence.csv", ds.UMLS(), embedding_dim=5, batch_size=16, num_epochs=5, result_file=f"results/evaluation_results_{date}.csv")
