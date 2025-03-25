@@ -9,7 +9,6 @@ from pykeen.models import TransE, DistMult, ComplEx, RotatE
 from pykeen.evaluation import LCWAEvaluationLoop
 from torch.optim import Adam
 from pykeen.training import SLCWATrainingLoop
-import torch.nn.functional as F
 
 
 
@@ -56,22 +55,7 @@ def negative_sampling(triples, num_entities):
             new_tail = np.random.randint(num_entities)
             neg_triples.append((head, relation, new_tail))
     return neg_triples
-
-# from paper
-def objective_function(model, pos_triples, neg_triples, confidences):
-    # Get model scores for positive and negative triples
-    pos_scores = model(pos_triples)  # f(l) for positives
-    neg_scores = model(neg_triples)  # f(l) for negatives
-
-    # First term: MSE loss for positive triples
-    loss_pos = torch.mean((pos_scores - confidences) ** 2)  # (f(l) - s_l)^2
-
-    # Second term: Apply transformation psi_gamma (e.g., ReLU to ensure penalties)
-    loss_neg = torch.mean(F.relu(neg_scores) ** 2)  # psi_gamma(f(l))^2
-
-    return loss_pos + loss_neg  # Final objective function
     
-
 def evaluate(model, dataset, top_k=10, device='cpu'):
     model.eval()
     
@@ -377,7 +361,7 @@ def train_and_evaluate_objective_function(file_path, dataset_models, embedding_d
                 neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
 
                 # Compute the loss using the objective function
-                loss = objective_function(model, pos_triples, neg_triples, confidences)
+                loss = model.objective_function(pos_triples, neg_triples, confidences)
 
                 # Optimize
                 optimizers[name].zero_grad()
@@ -403,4 +387,4 @@ def train_and_evaluate_objective_function(file_path, dataset_models, embedding_d
         
         csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
         
-        train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+    train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
