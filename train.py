@@ -144,7 +144,6 @@ def evaluate_complex(model, dataset, top_k=10):
 
     return mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5
 
-# evaluation for rotate
 def evaluate_rotate(model, dataset, top_k=10):
     model.eval()
     ranks = []
@@ -152,24 +151,32 @@ def evaluate_rotate(model, dataset, top_k=10):
     hits_at_5 = 0
 
     # Extract entity and relation embeddings
-    entity_embeddings = model.entity_embeddings.weight.data
-    relation_embeddings = model.relation_embeddings.weight.data
+    entity_embeddings = model.entity_embeddings.weight.data  # (num_entities, embedding_dim)
+    relation_embeddings = model.relation_embeddings.weight.data  # (num_relations, embedding_dim // 2)
 
     for head, relation, tail, confidence in dataset:
         # Extract embeddings
-        head_embedding = entity_embeddings[head]  # Real-valued embedding
-        relation_embedding = relation_embeddings[relation]  # Real-valued embedding
-        tail_embedding = entity_embeddings[tail]  # Real-valued embedding
+        head_embedding = entity_embeddings[head]
+        tail_embedding = entity_embeddings[tail]
+        relation_embedding = relation_embeddings[relation]  # Rotation in radians
 
-        # Compute the "rotated" head embedding: head + relation, representing the transformation
-        predicted_head_embedding = head_embedding + relation_embedding
+        # Split into real and imaginary parts
+        head_real, head_imag = torch.chunk(head_embedding, 2, dim=0)
+        tail_real, tail_imag = torch.chunk(tail_embedding, 2, dim=0)
 
-        # Compute scores for all entities at once (vectorized)
-        all_scores = torch.norm(predicted_head_embedding - entity_embeddings, dim=1)
+        # Compute rotation using cosine and sine
+        cos_r = torch.cos(relation_embedding)
+        sin_r = torch.sin(relation_embedding)
 
-        # Rank entities efficiently using PyTorch
-        sorted_indices = torch.argsort(all_scores, descending=False)
-        rank = (sorted_indices == tail).nonzero(as_tuple=True)[0].item() + 1  # Convert to 1-based rank
+        rotated_head_real = head_real * cos_r - head_imag * sin_r
+        rotated_head_imag = head_real * sin_r + head_imag * cos_r
+
+        # Compute L2 distances to all entities (vectorized)
+        all_real, all_imag = torch.chunk(entity_embeddings, 2, dim=1)
+        all_scores = torch.norm(rotated_head_real - all_real, dim=1) + torch.norm(rotated_head_imag - all_imag, dim=1)
+
+        # Rank entities efficiently
+        rank = torch.argsort(all_scores).tolist().index(tail) + 1  # Convert to 1-based ranking
 
         ranks.append((rank, confidence))
 
@@ -178,9 +185,9 @@ def evaluate_rotate(model, dataset, top_k=10):
         hits_at_5 += (rank <= 5)
 
     # Compute Evaluation Metrics
-    mean_rank = np.mean([rank for rank, _ in ranks])
-    mrr = np.mean([1 / rank for rank, _ in ranks])
-    hits_at_k = np.mean([1 if rank <= top_k else 0 for rank, _ in ranks])
+    mean_rank = torch.tensor([rank for rank, _ in ranks], dtype=torch.float32).mean().item()
+    mrr = torch.tensor([1 / rank for rank, _ in ranks], dtype=torch.float32).mean().item()
+    hits_at_k = torch.tensor([1 if rank <= top_k else 0 for rank, _ in ranks], dtype=torch.float32).mean().item()
 
     # Normalize Hits@1 and Hits@5
     hits_at_1 /= len(ranks)

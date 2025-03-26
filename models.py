@@ -100,6 +100,7 @@ class ComplExUncertainty(nn.Module):
 
         return loss_pos + loss_neg
     
+"""    
 class RotatEUncertainty(nn.Module):
     def __init__(self, num_entities, num_relations, embedding_dim):
         super(RotatEUncertainty, self).__init__()
@@ -128,4 +129,52 @@ class RotatEUncertainty(nn.Module):
         loss = torch.max(confidence_scores * (pos_score - neg_score + margin), torch.tensor(0.0, device=pos_score.device))
 
         # Return the mean loss
+        return loss.mean()
+        """
+class RotatEUncertainty(nn.Module):
+    def __init__(self, num_entities, num_relations, embedding_dim):
+        super(RotatEUncertainty, self).__init__()
+        assert embedding_dim % 2 == 0, "Embedding dimension must be even for complex embeddings"
+        self.embedding_dim = embedding_dim // 2  # Since we're using complex embeddings
+
+        # Entity embeddings (real and imaginary parts)
+        self.entity_embeddings = nn.Embedding(num_entities, embedding_dim)
+        nn.init.uniform_(self.entity_embeddings.weight, -0.1, 0.1)
+
+        # Relation embeddings (rotation angle in radians)
+        self.relation_embeddings = nn.Embedding(num_relations, self.embedding_dim)
+        nn.init.uniform_(self.relation_embeddings.weight, -3.14, 3.14)  # Initialize between -pi and pi
+
+    def forward(self, h, r, t):
+        # Get embeddings
+        head = self.entity_embeddings(h)  # (batch, embedding_dim)
+        tail = self.entity_embeddings(t)  # (batch, embedding_dim)
+        relation = self.relation_embeddings(r)  # (batch, embedding_dim / 2)
+
+        # Split into real and imaginary parts
+        head_real, head_imag = torch.chunk(head, 2, dim=1)
+        tail_real, tail_imag = torch.chunk(tail, 2, dim=1)
+
+        # Compute rotation (cosine and sine)
+        cos_r = torch.cos(relation)
+        sin_r = torch.sin(relation)
+
+        # Rotate head entity
+        rotated_head_real = head_real * cos_r - head_imag * sin_r
+        rotated_head_imag = head_real * sin_r + head_imag * cos_r
+
+        # Compute L2 distance between rotated head and tail
+        score = (rotated_head_real - tail_real) ** 2 + (rotated_head_imag - tail_imag) ** 2
+        score = torch.sum(score, dim=1)
+
+        return score
+
+    def loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
+        # Compute scores
+        pos_score = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+        neg_score = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
+
+        # Compute margin-based loss with uncertainty
+        loss = F.relu(confidence_scores * (pos_score - neg_score + margin))
+
         return loss.mean()
