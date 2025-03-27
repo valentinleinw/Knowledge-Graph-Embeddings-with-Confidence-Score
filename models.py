@@ -93,6 +93,37 @@ class DistMultUncertainty(nn.Module):
 
         return loss_pos + loss_neg
     
+    def softplus_loss(self, pos_triples, neg_triples, confidence_scores):
+        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+        neg_scores = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
+
+        pos_loss = -torch.mean(confidence_scores * F.softplus(pos_scores))
+        neg_loss = torch.mean(F.softplus(neg_scores))
+
+        return pos_loss + neg_loss
+
+    def gaussian_nll_loss(self, pos_triples, confidence_scores):
+        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+        
+        mean = pos_scores
+        variance = confidence_scores + 1e-6  # Prevent division by zero
+        
+        return torch.mean(0.5 * torch.log(variance) + 0.5 * ((pos_scores - confidence_scores) ** 2) / variance)
+
+    def contrastive_loss(self, pos_triples, neg_triples, margin=1.0):
+        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+        neg_scores = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
+
+        return torch.mean(F.relu(margin - pos_scores + neg_scores))
+
+    def kl_divergence_loss(self, pos_triples, confidence_scores):
+        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+
+        p = F.softmax(pos_scores, dim=0)
+        q = F.softmax(confidence_scores, dim=0)
+
+        return F.kl_div(p.log(), q, reduction='batchmean')
+    
 class ComplExUncertainty(nn.Module):
     def __init__(self, num_entities, num_relations, embedding_dim):
         super(ComplExUncertainty, self).__init__()
