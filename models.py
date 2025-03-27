@@ -38,6 +38,33 @@ class TransEUncertainty(nn.Module):
         # Total objective function
         return loss_pos + loss_neg
     
+    def softplus_loss(self, pos_triples, neg_triples, confidence_scores):
+        pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
+        neg_scores = torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1)
+        loss_pos = torch.mean(torch.log(1 + torch.exp(pos_scores - confidence_scores)))
+        loss_neg = torch.mean(torch.log(1 + torch.exp(-neg_scores)))
+        return loss_pos + loss_neg
+    
+    def gaussian_nll_loss(self, pos_triples, confidence_scores):
+        pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
+        sigma_sq = 1 / (confidence_scores + 1e-8)  # Prevent division by zero
+        loss = torch.mean((pos_scores - confidence_scores) ** 2 / (2 * sigma_sq) + torch.log(sigma_sq))
+        return loss
+    
+    def contrastive_loss(self, pos_triples, neg_triples, margin=1.0):
+        pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
+        neg_scores = torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1)
+        loss = torch.mean(F.relu(pos_scores - neg_scores + margin))
+        return loss
+    
+    def kl_divergence_loss(self, pos_triples, confidence_scores):
+        pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
+        pos_probs = F.softmax(-pos_scores, dim=0)
+        target_probs = F.softmax(-confidence_scores, dim=0)
+        loss = F.kl_div(pos_probs.log(), target_probs, reduction='batchmean')
+        return loss
+
+    
 class DistMultUncertainty(nn.Module):
     def __init__(self, num_entities, num_relations, embedding_dim):
         super(DistMultUncertainty, self).__init__()
@@ -100,37 +127,6 @@ class ComplExUncertainty(nn.Module):
 
         return loss_pos + loss_neg
     
-"""    
-class RotatEUncertainty(nn.Module):
-    def __init__(self, num_entities, num_relations, embedding_dim):
-        super(RotatEUncertainty, self).__init__()
-        self.entity_embeddings = nn.Embedding(num_entities, embedding_dim)
-        self.relation_embeddings = nn.Embedding(num_relations, embedding_dim)
-
-    def forward(self, h, r, t):
-        # Get the real embeddings of head, relation, and tail
-        head_real = self.entity_embeddings(h)
-        tail_real = self.entity_embeddings(t)
-        relation_real = self.relation_embeddings(r)
-
-        # Rotate the head embedding by adding the relation embedding
-        rotated_head_real = head_real + relation_real  # This is the "rotation"
-
-        # Compute the score as the L2 distance between the rotated head and tail
-        score = torch.sum((rotated_head_real - tail_real)**2, dim=1)
-        return score
-
-    def loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
-        # Calculate the scores for positive and negative triples
-        pos_score = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
-        neg_score = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
-
-        # Compute the margin-based loss with uncertainty (confidence scores)
-        loss = torch.max(confidence_scores * (pos_score - neg_score + margin), torch.tensor(0.0, device=pos_score.device))
-
-        # Return the mean loss
-        return loss.mean()
-        """
 class RotatEUncertainty(nn.Module):
     def __init__(self, num_entities, num_relations, embedding_dim):
         super(RotatEUncertainty, self).__init__()
