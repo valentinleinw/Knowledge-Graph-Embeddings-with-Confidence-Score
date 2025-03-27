@@ -63,8 +63,7 @@ class TransEUncertainty(nn.Module):
         target_probs = F.softmax(-confidence_scores, dim=0)
         loss = F.kl_div(pos_probs.log(), target_probs, reduction='batchmean')
         return loss
-
-    
+   
 class DistMultUncertainty(nn.Module):
     def __init__(self, num_entities, num_relations, embedding_dim):
         super(DistMultUncertainty, self).__init__()
@@ -158,6 +157,38 @@ class ComplExUncertainty(nn.Module):
 
         return loss_pos + loss_neg
     
+    def softplus_loss(self, pos_triples, neg_triples, confidence_scores):
+        pos_score = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+        neg_score = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
+
+        pos_loss = -confidence_scores * F.logsigmoid(pos_score + 1e-8)
+        neg_loss = -F.logsigmoid(-neg_score - 1e-8)
+
+        return (pos_loss + neg_loss).mean()
+    
+    def gaussian_nll_loss(self, pos_triples, confidence_scores):
+        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+
+        variance = confidence_scores  # Assume confidence scores represent variance
+        loss = (pos_scores - confidence_scores) ** 2 / (2 * variance) + torch.log(variance + 1e-8)
+
+        return loss.mean()
+    
+    def contrastive_loss(self, pos_triples, neg_triples, margin=1.0):
+        pos_score = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+        neg_score = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
+
+        loss = F.relu(margin - pos_score + neg_score)
+        return loss.mean()
+    
+    def kl_divergence_loss(self, pos_triples, confidence_scores):
+        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+        
+        p = F.softmax(pos_scores + 1e-8, dim=0)  # Model’s predicted distribution
+        q = F.softmax(confidence_scores, dim=0)  # Confidence score as target
+
+        return F.kl_div(p.log(), q, reduction="batchmean")
+
 class RotatEUncertainty(nn.Module):
     def __init__(self, num_entities, num_relations, embedding_dim):
         super(RotatEUncertainty, self).__init__()

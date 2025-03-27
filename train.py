@@ -546,3 +546,79 @@ def train_distmult_with_different_losses(file_path, embedding_dim=50, batch_size
             result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k,
             file_path, total_loss, num_epochs, embedding_dim, batch_size, margin
         )
+        
+def train_complex_with_different_losses(file_path, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    dataset = KnowledgeGraphDataset(file_path)
+    num_entities = len(dataset.entities)
+    num_relations = len(dataset.relations)
+    
+    # Initialize the model
+    model = ComplExUncertainty(num_entities, num_relations, embedding_dim).to(device)
+    
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    
+    # Create DataLoader
+    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    loss_functions = {
+        "softplus": model.softplus_loss,
+        "gaussian": model.gaussian_nll_loss,
+        "contrastive": model.contrastive_loss,
+        "divergence": model.kl_divergence_loss,
+        "objective_function": model.objective_function
+    }
+    
+    for name, loss_function in loss_functions.items():
+        print(f"\nTraining {name}...")
+        
+        model.train()  # Set model to training mode
+        total_loss = 0
+        
+        for epoch in range(num_epochs):
+            epoch_loss = 0
+            for batch in train_loader:
+                heads, relations, tails, confidences = [x.to(device) for x in batch]
+                
+                # Generate negative samples
+                neg_triples = negative_sampling(list(zip(heads.cpu(), relations.cpu(), tails.cpu(), confidences.cpu())), num_entities)
+                neg_heads, neg_relations, neg_tails = zip(*neg_triples)
+                
+                neg_heads = torch.tensor(neg_heads, dtype=torch.long, device=device)
+                neg_relations = torch.tensor(neg_relations, dtype=torch.long, device=device)
+                neg_tails = torch.tensor(neg_tails, dtype=torch.long, device=device)
+
+                # Compute loss and optimize
+                optimizer.zero_grad()
+                pos_triples = torch.stack([heads, relations, tails], dim=1)
+                neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
+                
+                # Compute loss dynamically based on function selection
+                if name == "contrastive":
+                    loss = loss_function(pos_triples, neg_triples, margin)
+                elif name in ["objective_function", "softplus"]:
+                    loss = loss_function(pos_triples, neg_triples, confidences)
+                else:
+                    loss = loss_function(pos_triples, confidences)
+                
+                loss.backward()
+                optimizer.step()
+                
+                epoch_loss += loss.item()
+            
+            avg_epoch_loss = epoch_loss / len(train_loader)
+            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_epoch_loss}")
+            total_loss += avg_epoch_loss  # Accumulate total loss properly
+
+        # Evaluation
+        mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5 = evaluate_complex(model, dataset)
+
+        # Print results
+        print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_k}")
+
+        # Write to CSV
+        csvEditor.write_results_to_csv(
+            result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k,
+            file_path, total_loss, num_epochs, embedding_dim, batch_size, margin
+        )
