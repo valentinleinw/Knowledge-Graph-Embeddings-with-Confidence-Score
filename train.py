@@ -195,7 +195,6 @@ def evaluate_rotate(model, dataset, top_k=10):
 
     return mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5
 
-
 def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
     # Load the dataset
     dataset = KnowledgeGraphDataset(file_path)
@@ -284,7 +283,6 @@ def train_and_evaluate_normal_models(dataset, embedding_dim, batch_size, num_epo
     model = RotatE(triples_factory=training, embedding_dim=embedding_dim)
     helper_for_normal_models(model,dataset.__class__.__name__, "RotatE", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
 
-    
 def helper_for_normal_models(model, dataset_name, name, num_epochs, batch_size, result_file, embedding_dim, training, validation, testing):
 
     model = model
