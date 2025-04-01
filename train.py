@@ -1,8 +1,7 @@
 import torch
 import torch.optim as optim
 import pandas as pd
-import numpy as np
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, Subset
 from models import TransEUncertainty, DistMultUncertainty, ComplExUncertainty, RotatEUncertainty
 from csvEditor import csvEditor
 from pykeen.models import TransE, DistMult, ComplEx, RotatE
@@ -11,6 +10,9 @@ from torch.optim import Adam
 from pykeen.training import SLCWATrainingLoop
 import evaluator
 import negative_sampling_creator
+from sklearn.model_selection import KFold
+from sklearn.model_selection import train_test_split
+
 
 class KnowledgeGraphDataset(Dataset):
     def __init__(self, file_path):
@@ -46,12 +48,152 @@ def initialize(file_path, batch_size):
     dataset = KnowledgeGraphDataset(file_path)
     num_entities = len(dataset.entities)
     num_relations = len(dataset.relations)
+    
+    train_data, temp_data = train_test_split(dataset, test_size=0.2, random_state=42)  # 80% train, 20% test+val
+    val_data, test_data = train_test_split(temp_data, test_size=0.5, random_state=42)  # Split temp into 50% validation, 50% test
         
     # Create DataLoader
-    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
     
-    return dataset, num_entities, num_relations, train_loader
+    return dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data
 
+def split_data_for_kfold(train_val_data, k=5):
+    # Use only the combined train and validation data for k-fold
+    kfold = KFold(n_splits=k, shuffle=True)
+    splits = []
+
+    for train_idx, val_idx in kfold.split(train_val_data):
+        train_subset = Subset(train_val_data, train_idx)
+        val_subset = Subset(train_val_data, val_idx)
+        splits.append((train_subset, val_subset))
+
+    return splits
+
+def training_loop(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file):
+    # Training Loop with validation
+    for name, model in models.items():
+        print(f"\nTraining {name}...")
+        loss_model = 0
+        
+        model.train()  # Set model to training mode
+        for epoch in range(num_epochs):
+            total_loss = 0
+            for batch in train_loader:
+                heads, relations, tails, confidences = batch
+                heads = torch.tensor(heads, dtype=torch.long)
+                relations = torch.tensor(relations, dtype=torch.long)
+                tails = torch.tensor(tails, dtype=torch.long)
+                confidences = torch.tensor(confidences, dtype=torch.float)
+
+                # Generate negative samples
+                neg_triples = negative_sampling_creator.negative_sampling(list(zip(heads, relations, tails, confidences)), num_entities)
+                neg_heads, neg_relations, neg_tails = zip(*neg_triples)
+                neg_heads = torch.tensor(neg_heads, dtype=torch.long)
+                neg_relations = torch.tensor(neg_relations, dtype=torch.long)
+                neg_tails = torch.tensor(neg_tails, dtype=torch.long)
+
+                # Compute loss and optimize
+                optimizers[name].zero_grad()
+                pos_triples = torch.stack([heads, relations, tails], dim=1)
+                neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
+                if loss_function == "loss":
+                    loss = model.loss(pos_triples, neg_triples, confidences, margin)
+                else:
+                    loss = model.objective_function(pos_triples, neg_triples, confidences)
+                loss.backward()
+                optimizers[name].step()
+
+                total_loss += loss.item()
+        
+            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
+            
+            # Validation step after each epoch
+            mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluate_model_on_validation(model, val_loader)
+            print(f"Validation - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
+        
+        loss_model = total_loss / len(train_loader)
+    
+        print(f"\nEvaluating {name} on test set...")
+        # Test evaluation (make sure evaluator is defined correctly)
+        
+        if isinstance(model, ComplExUncertainty):  # Check if the model is ComplEx
+            mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)  # Use `evaluate` here instead
+        else:
+            mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)  # Use `evaluate` here instead
+        
+        # Print results
+        print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
+        
+        # Assuming csvEditor is a predefined object for logging results
+        csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
+
+# helper
+def evaluate_model_on_validation(model, val_loader):
+    model.eval()  # Set model to evaluation mode
+    
+    mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = 0, 0, 0, 0, 0
+    with torch.no_grad():  # Disable gradient calculation
+        for batch in val_loader:
+            heads, relations, tails, confidences = batch
+            heads = torch.tensor(heads, dtype=torch.long)
+            relations = torch.tensor(relations, dtype=torch.long)
+            tails = torch.tensor(tails, dtype=torch.long)
+            confidences = torch.tensor(confidences, dtype=torch.float)
+
+            # Evaluate the model with the current batch
+            if isinstance(model, ComplExUncertainty):  # Check if the model is ComplEx
+                batch_mean_rank, batch_mrr, batch_hits_at_10, batch_hits_at_1, batch_hits_at_5 = evaluator.evaluate_complex(model, val_loader)
+            else:
+                # For other models, use the standard evaluate function
+                batch_mean_rank, batch_mrr, batch_hits_at_10, batch_hits_at_1, batch_hits_at_5 = evaluator.evaluate(model, val_loader)
+            mean_rank += batch_mean_rank
+            mrr += batch_mrr
+            hits_at_10 += batch_hits_at_10
+            hits_at_1 += batch_hits_at_1
+            hits_at_5 += batch_hits_at_5
+    
+    # Average the metrics over the validation set
+    num_batches = len(val_loader)
+    mean_rank /= num_batches
+    mrr /= num_batches
+    hits_at_10 /= num_batches
+    hits_at_1 /= num_batches
+    hits_at_5 /= num_batches
+    
+    return mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5
+
+def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
+    dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data = initialize(file_path, batch_size)
+    
+    # Use only train + val data for k-fold
+    train_val_data = train_data + val_data
+    splits = split_data_for_kfold(train_val_data, k=k_folds)
+    
+    for fold, (train_subset, val_subset) in enumerate(splits):
+        print(f"\nFold {fold+1}/{k_folds}...")
+        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
+        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
+        
+        # Initialize the models
+        models = {
+            "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
+            "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
+            "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
+            "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
+        }
+        
+        optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
+        
+        # Use the training loop with models, loaders, and optimizers
+        training_loop(models, train_loader, val_loader, test_loader, optimizers, "loss", dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file)
+        
+    # Optionally evaluate models without uncertainty on the entire dataset
+    train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+
+
+"""
 def training_loop(models, train_loader, optimizers, loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file):
     # Training Loop
     for name, model in models.items():
@@ -123,7 +265,7 @@ def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=6
     training_loop(models, train_loader, optimizers, "loss", dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file)
         
     train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
-    
+"""   
 def train_and_evaluate_normal_models(dataset, embedding_dim, batch_size, num_epochs, margin, result_file='evaluation_results.csv'):
     dataset = dataset
     training = dataset.training

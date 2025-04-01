@@ -99,13 +99,10 @@ def generate_negative_samples(h, r, t, num_entities, n, q_set, confidence_score,
             negatives.append(neg_quad)
     return negatives
 
-
-
 def load_dataset(csv_file):
     df = pd.read_csv(csv_file)
     triples = [(row['head'], row['relation'], row['tail'], row['confidence_score']) for _, row in df.iterrows()]
     return triples
-
 
 def train_link_prediction(model_class, train_set, num_entities, num_relations, embedding_dim, batch_size, n, margin, learning_rate, num_epochs, x1, x2):
     model = model_class(num_entities, num_relations, embedding_dim, margin)
@@ -161,8 +158,6 @@ def evaluate_link_prediction(model, test_set, num_entities):
     # Assuming csvEditor has a method that can take in the results and save them to CSV
     csvEditor.write_results_to_csv("results/test-results.csv", model.__class__.__name__, "N/A", mrr, hits_1, hits_5, hits_10, "datasets/paper_bounded.csv", "", "", "", "", "")
     return mrr, hits_1, hits_5, hits_10
-
-
 
 if __name__ == "__main__":
     # Load dataset
