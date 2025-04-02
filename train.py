@@ -328,9 +328,18 @@ def helper_for_normal_models(model, dataset_name, name, num_epochs, batch_size, 
     
     csvEditor.write_results_to_csv(result_file, name, "N/A", mrr, hits_at_1, hits_at_5, hits_at_10, dataset_name, losses_per_epoch[-1], num_epochs, embedding_dim, batch_size, "N/A")
     
-def train_and_evaluate_objective_function(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
+def train_and_evaluate_objective_function(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     
-    dataset, num_entities, num_relations, train_loader = initialize(file_path, batch_size)
+    dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data = initialize(file_path, batch_size)
+    
+    # Use only train + val data for k-fold
+    train_val_data = train_data + val_data
+    splits = split_data_for_kfold(train_val_data, k=k_folds)
+    
+    for fold, (train_subset, val_subset) in enumerate(splits):
+        print(f"\nFold {fold+1}/{k_folds}...")
+        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
+        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
     
     # Initialize the model
     models = {
@@ -340,14 +349,23 @@ def train_and_evaluate_objective_function(file_path, dataset_models, embedding_d
     }
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
         
-    training_loop(models, train_loader, optimizers, "objective", dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file)
+    training_loop(models, train_loader,val_loader, test_loader, optimizers, "objective", dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file)
         
     train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
-def train_transE_with_different_losses(file_path, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
+def train_transE_with_different_losses(file_path, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    dataset, num_entities, num_relations, train_loader = initialize(file_path, batch_size)
+    dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data = initialize(file_path, batch_size)
+    
+    # Use only train + val data for k-fold
+    train_val_data = train_data + val_data
+    splits = split_data_for_kfold(train_val_data, k=k_folds)
+    
+    for fold, (train_subset, val_subset) in enumerate(splits):
+        print(f"\nFold {fold+1}/{k_folds}...")
+        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
+        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
     
     # Initialize the model
     model = TransEUncertainty(num_entities, num_relations, embedding_dim).to(device)
@@ -404,7 +422,7 @@ def train_transE_with_different_losses(file_path, embedding_dim=50, batch_size=6
             total_loss += avg_epoch_loss  # Accumulate total loss properly
 
         # Evaluation
-        mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5 = evaluator.evaluate(model, dataset)
+        mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)
 
         # Print results
         print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_k}")
@@ -415,10 +433,19 @@ def train_transE_with_different_losses(file_path, embedding_dim=50, batch_size=6
             file_path, total_loss, num_epochs, embedding_dim, batch_size, margin
         )
         
-def train_distmult_with_different_losses(file_path, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
+def train_distmult_with_different_losses(file_path, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    dataset, num_entities, num_relations, train_loader = initialize(file_path, batch_size)
+    dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data = initialize(file_path, batch_size)
+    
+    # Use only train + val data for k-fold
+    train_val_data = train_data + val_data
+    splits = split_data_for_kfold(train_val_data, k=k_folds)
+    
+    for fold, (train_subset, val_subset) in enumerate(splits):
+        print(f"\nFold {fold+1}/{k_folds}...")
+        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
+        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
     
     # Initialize the model
     model = DistMultUncertainty(num_entities, num_relations, embedding_dim).to(device)
@@ -475,7 +502,7 @@ def train_distmult_with_different_losses(file_path, embedding_dim=50, batch_size
             total_loss += avg_epoch_loss  # Accumulate total loss properly
 
         # Evaluation
-        mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5 = evaluator.evaluate(model, dataset)
+        mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)
 
         # Print results
         print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_k}")
@@ -486,10 +513,19 @@ def train_distmult_with_different_losses(file_path, embedding_dim=50, batch_size
             file_path, total_loss, num_epochs, embedding_dim, batch_size, margin
         )
         
-def train_complex_with_different_losses(file_path, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
+def train_complex_with_different_losses(file_path, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    dataset, num_entities, num_relations, train_loader = initialize(file_path, batch_size)
+    dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data = initialize(file_path, batch_size)
+    
+    # Use only train + val data for k-fold
+    train_val_data = train_data + val_data
+    splits = split_data_for_kfold(train_val_data, k=k_folds)
+    
+    for fold, (train_subset, val_subset) in enumerate(splits):
+        print(f"\nFold {fold+1}/{k_folds}...")
+        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
+        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
     
     # Initialize the model
     model = ComplExUncertainty(num_entities, num_relations, embedding_dim).to(device)
@@ -546,7 +582,7 @@ def train_complex_with_different_losses(file_path, embedding_dim=50, batch_size=
             total_loss += avg_epoch_loss  # Accumulate total loss properly
 
         # Evaluation
-        mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, dataset)
+        mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)
 
         # Print results
         print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_k}")
