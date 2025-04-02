@@ -117,7 +117,66 @@ def evaluate_complex(model, test_loader, device='cpu', top_k=10):
 
     return mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5
 
+# need to change rotate as well
+def evaluate_rotate(model, test_loader, top_k=10):
+    model.eval()
+    ranks = []
+    hits_at_1 = 0
+    hits_at_5 = 0
+    total_samples = 0
 
+    # Extract entity and relation embeddings
+    entity_embeddings = model.entity_embeddings.weight.data  # (num_entities, embedding_dim)
+    relation_embeddings = model.relation_embeddings.weight.data  # (num_relations, embedding_dim // 2)
+
+    with torch.no_grad():
+        for batch in test_loader:
+            heads, relations, tails, confidences = batch  # Unpack batch
+            batch_size = heads.size(0)
+            total_samples += batch_size
+
+            # Extract embeddings
+            head_embeddings = entity_embeddings[heads]
+            tail_embeddings = entity_embeddings[tails]
+            relation_embeddings_batch = relation_embeddings[relations]  # Rotation in radians
+
+            # Split into real and imaginary parts
+            head_real, head_imag = torch.chunk(head_embeddings, 2, dim=1)
+            tail_real, tail_imag = torch.chunk(tail_embeddings, 2, dim=1)
+
+            # Compute rotation using cosine and sine
+            cos_r = torch.cos(relation_embeddings_batch)
+            sin_r = torch.sin(relation_embeddings_batch)
+
+            rotated_head_real = head_real * cos_r - head_imag * sin_r
+            rotated_head_imag = head_real * sin_r + head_imag * cos_r
+
+            # Compute L2 distances to all entities (vectorized)
+            all_real, all_imag = torch.chunk(entity_embeddings, 2, dim=1)
+            all_scores = torch.norm(rotated_head_real.unsqueeze(1) - all_real, dim=2) + \
+                         torch.norm(rotated_head_imag.unsqueeze(1) - all_imag, dim=2)
+
+            # Rank entities efficiently
+            sorted_indices = torch.argsort(all_scores, dim=1)
+            ranks_batch = (sorted_indices == tails.unsqueeze(1)).nonzero(as_tuple=True)[1] + 1  # Convert to 1-based rank
+
+            # Collect rankings
+            ranks.extend(zip(ranks_batch.tolist(), confidences.tolist()))
+
+            # Compute Hits@1 and Hits@5 for batch
+            hits_at_1 += (ranks_batch == 1).sum().item()
+            hits_at_5 += (ranks_batch <= 5).sum().item()
+
+    # Compute Evaluation Metrics
+    mean_rank = torch.tensor([rank for rank, _ in ranks], dtype=torch.float32).mean().item()
+    mrr = torch.tensor([1 / rank for rank, _ in ranks], dtype=torch.float32).mean().item()
+    hits_at_k = torch.tensor([1 if rank <= top_k else 0 for rank, _ in ranks], dtype=torch.float32).mean().item()
+
+    # Normalize Hits@1 and Hits@5
+    hits_at_1 /= total_samples
+    hits_at_5 /= total_samples
+
+    return mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5
 
 """
 def evaluate(model, dataset, top_k=10, device='cpu'):

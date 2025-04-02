@@ -120,6 +120,8 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
         
         if isinstance(model, ComplExUncertainty):  # Check if the model is ComplEx
             mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)  # Use `evaluate` here instead
+        elif isinstance(model, RotatEUncertainty):
+            mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_rotate(model, test_loader)
         else:
             mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)  # Use `evaluate` here instead
         
@@ -145,6 +147,8 @@ def evaluate_model_on_validation(model, val_loader):
             # Evaluate the model with the current batch
             if isinstance(model, ComplExUncertainty):  # Check if the model is ComplEx
                 batch_mean_rank, batch_mrr, batch_hits_at_10, batch_hits_at_1, batch_hits_at_5 = evaluator.evaluate_complex(model, val_loader)
+            elif isinstance(model, RotatEUncertainty):
+                batch_mean_rank, batch_mrr, batch_hits_at_10, batch_hits_at_1, batch_hits_at_5 = evaluator.evaluate_rotate(model, val_loader)
             else:
                 # For other models, use the standard evaluate function
                 batch_mean_rank, batch_mrr, batch_hits_at_10, batch_hits_at_1, batch_hits_at_5 = evaluator.evaluate(model, val_loader)
