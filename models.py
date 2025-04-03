@@ -18,11 +18,16 @@ class TransEUncertainty(nn.Module):
             torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1), min=0))
         return pos_loss
     
+    # maybe use average of neg_scores instead of expanding pso_score
     def loss_neg(self, pos_triples, neg_triples, pos_confidence_scores, neg_confidence_scores, margin=1.0):
 
         # Compute positive and negative scores
         pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
         neg_scores = torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1)
+        
+        num_neg_samples = len(neg_scores) // len(pos_scores)  # Get ratio of neg to pos
+        pos_scores = pos_scores.repeat_interleave(num_neg_samples)  # Expand to match neg_scores
+        pos_confidence_scores = pos_confidence_scores.repeat_interleave(num_neg_samples)
 
         # Compute loss with confidence weighting
         pos_loss = torch.sum(pos_confidence_scores * torch.clamp(margin + pos_scores - neg_scores, min=0))
