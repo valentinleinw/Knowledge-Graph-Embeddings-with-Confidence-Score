@@ -17,29 +17,29 @@ def negative_sampling(triples, num_entities):
     return neg_triples
     
 def negative_sampling_cosukg(triples, num_entities, num_samples, x1, x2):
-    neg_triples = []
+    neg_quad = []
     for head, relation, tail, confidence in triples:
         for _ in range(num_samples):
             if confidence > x1:
                 # Generate (h, r, t, c') where c' is in (0, 1 - c]
                 new_confidence = np.random.uniform(0, 1 - confidence)
-                neg_triples.append((head, relation, tail, new_confidence))
+                neg_quad.append((head, relation, tail, new_confidence))
             elif confidence < x2:
                 # Generate (h, r, t, c') where c' is in [1 - c, 1)
                 new_confidence = np.random.uniform(1 - confidence, 1)
-                neg_triples.append((head, relation, tail, new_confidence))
+                neg_quad.append((head, relation, tail, new_confidence))
             else:
                 # Generate (h', r, t, c) or (h, r, t', c)
                 if np.random.rand() > 0.5:
                     new_head = np.random.randint(num_entities)
-                    neg_triples.append((new_head, relation, tail, confidence))
+                    neg_quad.append((new_head, relation, tail, confidence))
                 else:
                     new_tail = np.random.randint(num_entities)
-                    neg_triples.append((head, relation, new_tail, confidence))
-    return neg_triples 
+                    neg_quad.append((head, relation, new_tail, confidence))
+    return neg_quad 
 
 def negative_sampling_inverse(triples, num_entities, num_samples):
-    neg_triples = []
+    neg_quad = []
     for head, relation, tail, confidence in triples:
         for _ in range(num_samples):
             # Generate a corrupted triple (h', r, t) or (h, r, t')
@@ -52,12 +52,12 @@ def negative_sampling_inverse(triples, num_entities, num_samples):
             
             # Compute confidence as an inverse function of the original confidence
             new_confidence = 1 - confidence  
-            neg_triples.append((new_head, relation, new_tail, new_confidence))
+            neg_quad.append((new_head, relation, new_tail, new_confidence))
 
-    return neg_triples
+    return neg_quad
 
 def negative_sampling_similarity(triples, num_entities, num_samples, entity_embeddings):
-    neg_triples = []
+    neg_quad = []
     
     for head, relation, tail, confidence in triples:
         for _ in range(num_samples):
@@ -78,12 +78,12 @@ def negative_sampling_similarity(triples, num_entities, num_samples, entity_embe
             similarity_score = similarities[0][new_tail] if new_head == head else similarities[0][new_head]
             new_confidence = confidence * similarity_score  # Higher similarity → higher confidence
 
-            neg_triples.append((new_head, relation, new_tail, new_confidence))
+            neg_quad.append((new_head, relation, new_tail, new_confidence))
     
-    return neg_triples
+    return neg_quad
 
 def negative_sampling_graph(triples, num_entities, num_samples, graph):
-    neg_triples = []
+    neg_quad = []
     
     for head, relation, tail, confidence in triples:
         for _ in range(num_samples):
@@ -103,6 +103,6 @@ def negative_sampling_graph(triples, num_entities, num_samples, graph):
             # Assign confidence based on distance (closer nodes → higher confidence)
             new_confidence = np.exp(-distance)  # Exponential decay function
             
-            neg_triples.append((new_head, relation, new_tail, new_confidence))
+            neg_quad.append((new_head, relation, new_tail, new_confidence))
     
-    return neg_triples
+    return neg_quad
