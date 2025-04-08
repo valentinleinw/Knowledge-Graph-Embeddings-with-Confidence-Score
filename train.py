@@ -12,6 +12,7 @@ import evaluator
 import negative_sampling_creator
 from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split
+import numpy as np
 
 
 class KnowledgeGraphDataset(Dataset):
@@ -145,10 +146,21 @@ def training_loop_neg_confidences(models, train_loader, val_loader, test_loader,
                 relations = torch.tensor(relations, dtype=torch.long)
                 tails = torch.tensor(tails, dtype=torch.long)
                 pos_confidences = torch.tensor(confidences, dtype=torch.float)  # Renamed for clarity
+                
+                if isinstance(model, ComplExUncertainty):
+                    # For complex-valued embeddings (real + imaginary)
+                    entity_embeddings_real = model.entity_im_embeddings.weight.detach().cpu().numpy()
+                    entity_embeddings_imag = model.entity_re_embeddings.weight.detach().cpu().numpy()
+                    
+                    # Concatenate them to form a full representation
+                    entity_embeddings = np.concatenate([entity_embeddings_real, entity_embeddings_imag], axis=1)
+                else:
+                    # For regular embeddings
+                    entity_embeddings = model.entity_embeddings.weight.detach().cpu().numpy()
 
                 # Generate negative samples with confidence scores
-                neg_quad = negative_sampling_creator.negative_sampling_inverse(
-                    list(zip(heads, relations, tails, pos_confidences)), num_entities, 10
+                neg_quad = negative_sampling_creator.negative_sampling_similarity(
+                    list(zip(heads, relations, tails, pos_confidences)), num_entities, 10, entity_embeddings
                 )
 
                 # Unzip negative samples
@@ -272,9 +284,9 @@ def train_and_evaluate_neg_confidences(file_path, dataset_models, embedding_dim=
         val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
 
         models = {
-            "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-            "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-            "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
+            #"TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
+            #"DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
+            #"ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
             "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
         }
 
@@ -295,9 +307,9 @@ def train_and_evaluate_neg_confidences(file_path, dataset_models, embedding_dim=
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 
     final_models = {
-        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
+        #"TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
+        #"DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
+        #"ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
         "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
     }
 
