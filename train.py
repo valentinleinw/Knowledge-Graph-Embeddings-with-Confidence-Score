@@ -147,8 +147,8 @@ def training_loop_neg_confidences(models, train_loader, val_loader, test_loader,
                 pos_confidences = torch.tensor(confidences, dtype=torch.float)  # Renamed for clarity
 
                 # Generate negative samples with confidence scores
-                neg_quad = negative_sampling_creator.negative_sampling_cosukg(
-                    list(zip(heads, relations, tails, pos_confidences)), num_entities, 10, 0.8, 0.2
+                neg_quad = negative_sampling_creator.negative_sampling_inverse(
+                    list(zip(heads, relations, tails, pos_confidences)), num_entities, 10
                 )
 
                 # Unzip negative samples
@@ -178,7 +178,12 @@ def training_loop_neg_confidences(models, train_loader, val_loader, test_loader,
         loss_model = total_loss / len(train_loader)
     
         print(f"\nEvaluating {name} on test set...")
-        mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)  
+        if isinstance(model, ComplExUncertainty):  # Check if the model is ComplEx
+            mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)  # Use `evaluate` here instead
+        elif isinstance(model, RotatEUncertainty):
+            mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_rotate(model, test_loader)
+        else:
+            mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)  # Use `evaluate` here instead
         
         # Print results
         print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
@@ -265,10 +270,10 @@ def train_and_evaluate_neg_confidences(file_path, dataset_models, embedding_dim=
         
         # Initialize the models
         models = {
-            "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
+            #"TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
             #"DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
             #"ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-            #"RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
+            "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
         }
         
         optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}

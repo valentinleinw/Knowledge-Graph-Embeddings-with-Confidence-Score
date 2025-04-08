@@ -100,6 +100,21 @@ class DistMultUncertainty(nn.Module):
         pos_loss = confidence_scores * torch.clamp(margin - pos_score + neg_score, min=0)
         return pos_loss.sum()
     
+    def loss_neg(self, pos_triples, neg_triples, pos_confidence_scores, neg_confidence_scores, margin=1.0):
+        # Get scores (higher = better), so we negate them to make them similar to distance (lower = better)
+        pos_scores = -self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+        neg_scores = -self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
+
+        num_neg_samples = len(neg_scores) // len(pos_scores)
+        pos_scores = pos_scores.repeat_interleave(num_neg_samples)
+        pos_confidence_scores = pos_confidence_scores.repeat_interleave(num_neg_samples)
+
+        pos_loss = torch.sum(pos_confidence_scores * torch.clamp(margin + pos_scores - neg_scores, min=0))
+        neg_loss = torch.sum(neg_confidence_scores * torch.clamp(margin + pos_scores - neg_scores, min=0))
+
+        return pos_loss + neg_loss
+
+    
     def objective_function(self, pos_triples, neg_triples, confidence_scores):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         neg_scores = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
@@ -165,6 +180,19 @@ class ComplExUncertainty(nn.Module):
 
         loss = confidence_scores * torch.clamp(margin - pos_score + neg_score, min=0)
         return loss.mean() 
+    
+    def loss_neg(self, pos_triples, neg_triples, pos_confidence_scores, neg_confidence_scores, margin=1.0):
+        pos_scores = -self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+        neg_scores = -self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
+
+        num_neg_samples = len(neg_scores) // len(pos_scores)
+        pos_scores = pos_scores.repeat_interleave(num_neg_samples)
+        pos_confidence_scores = pos_confidence_scores.repeat_interleave(num_neg_samples)
+
+        pos_loss = pos_confidence_scores * torch.clamp(margin + pos_scores - neg_scores, min=0)
+        neg_loss = neg_confidence_scores * torch.clamp(margin + pos_scores - neg_scores, min=0)
+
+        return pos_loss.mean() + neg_loss.mean()
     
     def objective_function(self, pos_triples, neg_triples, confidence_scores):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
@@ -254,3 +282,16 @@ class RotatEUncertainty(nn.Module):
         loss = F.relu(confidence_scores * (pos_score - neg_score + margin))
 
         return loss.mean()
+    
+    def loss_neg(self, pos_triples, neg_triples, pos_confidence_scores, neg_confidence_scores, margin=1.0):
+        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])  # Already distance
+        neg_scores = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
+
+        num_neg_samples = len(neg_scores) // len(pos_scores)
+        pos_scores = pos_scores.repeat_interleave(num_neg_samples)
+        pos_confidence_scores = pos_confidence_scores.repeat_interleave(num_neg_samples)
+
+        pos_loss = F.relu(pos_confidence_scores * (pos_scores - neg_scores + margin))
+        neg_loss = F.relu(neg_confidence_scores * (pos_scores - neg_scores + margin))
+
+        return pos_loss.mean() + neg_loss.mean()
