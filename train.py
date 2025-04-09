@@ -159,8 +159,8 @@ def training_loop_neg_confidences(models, train_loader, val_loader, test_loader,
                     entity_embeddings = model.entity_embeddings.weight.detach().cpu().numpy()
 
                 # Generate negative samples with confidence scores
-                neg_quad = negative_sampling_creator.negative_sampling_similarity(
-                    list(zip(heads, relations, tails, pos_confidences)), num_entities, 10, entity_embeddings
+                neg_quad = negative_sampling_creator.negative_sampling_graph(
+                    list(zip(heads, relations, tails, pos_confidences)), 10
                 )
 
                 # Unzip negative samples
