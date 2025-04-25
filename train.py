@@ -60,18 +60,6 @@ def initialize(file_path, batch_size):
     
     return dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data
 
-def split_data_for_kfold(train_val_data, k=5):
-    # Use only the combined train and validation data for k-fold
-    kfold = KFold(n_splits=k, shuffle=True)
-    splits = []
-
-    for train_idx, val_idx in kfold.split(train_val_data):
-        train_subset = Subset(train_val_data, train_idx)
-        val_subset = Subset(train_val_data, val_idx)
-        splits.append((train_subset, val_subset))
-
-    return splits
-
 def training_loop(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file):
     # Training Loop with validation
     for name, model in models.items():
@@ -109,11 +97,6 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
                 total_loss += loss.item()
         
             print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
-            
-            # Validation step after each epoch
-            if val_loader is not None:
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluate_model_on_validation(model, val_loader)
-                print(f"Validation - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
             
         loss_model = total_loss / len(train_loader)
     
@@ -172,11 +155,6 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
                 total_loss += loss.item()
         
             print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
-            
-            # Validation step after each epoch
-            if val_loader is not None:
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluate_model_on_validation(model, val_loader)
-                print(f"Validation - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
         
         loss_model = total_loss / len(train_loader)
     
@@ -235,11 +213,6 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
         
             print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
             
-            # Validation step after each epoch
-            if val_loader is not None:
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluate_model_on_validation(model, val_loader)
-                print(f"Validation - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
-        
         loss_model = total_loss / len(train_loader)
     
         if test_loader is not None:
@@ -308,11 +281,6 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
         
             print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
             
-            # Validation step after each epoch
-            if val_loader is not None:
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluate_model_on_validation(model, val_loader)
-                print(f"Validation - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
-        
         loss_model = total_loss / len(train_loader)
     
         if test_loader is not None:
@@ -330,67 +298,6 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
             # Log results to CSV
             csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
 
-def training_loop_neg_confidences_graph(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file):
-    for name, model in models.items():
-        print(f"\nTraining {name}...")
-        loss_model = 0
-        
-        model.train()  # Set model to training mode
-        for epoch in range(num_epochs):
-            total_loss = 0
-            for batch in train_loader:
-                heads, relations, tails, confidences = batch
-                heads = torch.tensor(heads, dtype=torch.long)
-                relations = torch.tensor(relations, dtype=torch.long)
-                tails = torch.tensor(tails, dtype=torch.long)
-                pos_confidences = torch.tensor(confidences, dtype=torch.float)  # Renamed for clarity
-
-                # Generate negative samples with confidence scores
-                neg_quad = negative_sampling_creator.negative_sampling_graph(
-                    list(zip(heads, relations, tails, pos_confidences)), 10
-                )
-
-                # Unzip negative samples
-                neg_heads, neg_relations, neg_tails, neg_confidences = zip(*neg_quad)
-                neg_heads = torch.tensor(neg_heads, dtype=torch.long)
-                neg_relations = torch.tensor(neg_relations, dtype=torch.long)
-                neg_tails = torch.tensor(neg_tails, dtype=torch.long)
-                neg_confidences = torch.tensor(neg_confidences, dtype=torch.float)  # Convert to tensor
-
-                # Compute loss and optimize
-                optimizers[name].zero_grad()
-                pos_triples = torch.stack([heads, relations, tails], dim=1)
-                neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
-
-                loss = model.loss_neg(pos_triples, neg_triples, pos_confidences, neg_confidences, margin)
-                loss.backward()
-                optimizers[name].step()
-
-                total_loss += loss.item()
-        
-            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
-            
-            # Validation step after each epoch
-            if val_loader is not None:
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluate_model_on_validation(model, val_loader)
-                print(f"Validation - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
-        
-        loss_model = total_loss / len(train_loader)
-    
-        if test_loader is not None:
-            print(f"\nEvaluating {name} on test set...")
-            if isinstance(model, ComplExUncertainty):  # Check if the model is ComplEx
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)  # Use `evaluate` here instead
-            elif isinstance(model, RotatEUncertainty):
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_rotate(model, test_loader)
-            else:
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)  # Use `evaluate` here instead
-            
-            # Print results
-            print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
-            
-            # Log results to CSV
-            csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
 
 # helper
 def evaluate_model_on_validation(model, val_loader):
@@ -434,127 +341,51 @@ def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=6
 
     # Combine train and val for k-fold cross-validation
     train_val_data = train_data + val_data
-    splits = split_data_for_kfold(train_val_data, k=k_folds)
-
-    print(f"\nRunning {k_folds}-fold cross-validation for training and validation...\n")
-    for fold, (train_subset, val_subset) in enumerate(splits):
-        print(f"\nFold {fold+1}/{k_folds}...")
-        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
-
-        models = {
-            "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-            "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-            "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-            "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
-        }
-
-        optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
-
-        training_loop(
-            models, train_loader, val_loader, test_loader=None,
-            optimizers=optimizers, loss_function="loss",
-            dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
-            embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-            file_path=file_path, result_file=None
-        )
 
     full_train_loader = DataLoader(train_val_data, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 
-    final_models = {
+    models = {
         "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
         "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
         "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
         "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
     }
 
-    final_optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in final_models.items()}
+    optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
 
     training_loop(
-        final_models, full_train_loader, val_loader=None, test_loader=test_loader,
-        optimizers=final_optimizers, loss_function="loss",
+        models, full_train_loader, val_loader=None, test_loader=test_loader,
+        optimizers=optimizers, loss_function="loss",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
         file_path=file_path, result_file=result_file
     )
 
     train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
-    """
-    dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data = initialize(file_path, batch_size)
     
-    # Use only train + val data for k-fold
-    train_val_data = train_data + val_data
-    splits = split_data_for_kfold(train_val_data, k=k_folds)
-    
-    for fold, (train_subset, val_subset) in enumerate(splits):
-        print(f"\nFold {fold+1}/{k_folds}...")
-        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
-        
-        # Initialize the models
-        models = {
-            "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-            "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-            "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-            "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
-        }
-        
-        optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
-        
-        # Use the training loop with models, loaders, and optimizers
-        training_loop(models, train_loader, val_loader, test_loader, optimizers, "loss", dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file)
-        
-    # Optionally evaluate models without uncertainty on the entire dataset
-    train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
-    """
 def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     dataset, num_entities, num_relations, _, _, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
     # Combine train and val for k-fold cross-validation
     train_val_data = train_data + val_data
-    splits = split_data_for_kfold(train_val_data, k=k_folds)
-
-    print(f"\nRunning {k_folds}-fold cross-validation for training and validation...\n")
-    for fold, (train_subset, val_subset) in enumerate(splits):
-        print(f"\nFold {fold+1}/{k_folds}...")
-        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
-
-        models = {
-            "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-            "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-            "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-            "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
-        }
-
-        optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
-
-        # Train/validate: NO test evaluation, NO CSV writing
-        training_loop_neg_confidences_cosukg(
-            models, train_loader, val_loader, test_loader=None,  # test_loader not used here
-            optimizers=optimizers, loss_function="loss",
-            dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
-            embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-            file_path=file_path, result_file=None  # don't write CSV during k-fold
-        )
 
     full_train_loader = DataLoader(train_val_data, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 
-    final_models = {
+    models = {
         "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
         "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
         "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
         "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
     }
 
-    final_optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in final_models.items()}
+    optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
 
     # Final training and test evaluation, this time log to CSV
     training_loop_neg_confidences_cosukg(
-        final_models, full_train_loader, val_loader=None, test_loader=test_loader,
-        optimizers=final_optimizers, loss_function="loss",
+        models, full_train_loader, val_loader=None, test_loader=test_loader,
+        optimizers=optimizers, loss_function="loss",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
         file_path=file_path, result_file=result_file  # ✅ now write results to CSV
@@ -568,50 +399,23 @@ def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedd
 
     # Combine train and val for k-fold cross-validation
     train_val_data = train_data + val_data
-    splits = split_data_for_kfold(train_val_data, k=k_folds)
 
-    print(f"\nRunning {k_folds}-fold cross-validation for training and validation...\n")
-    for fold, (train_subset, val_subset) in enumerate(splits):
-        print(f"\nFold {fold+1}/{k_folds}...")
-        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
-
-        models = {
-            "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-            "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-            "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-            "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
-        }
-
-        optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
-
-        # Train/validate: NO test evaluation, NO CSV writing
-        training_loop_neg_confidences_inverse(
-            models, train_loader, val_loader, test_loader=None,  # test_loader not used here
-            optimizers=optimizers, loss_function="loss",
-            dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
-            embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-            file_path=file_path, result_file=None  # don't write CSV during k-fold
-        )
-
-    # ======= Final Training on Full Train+Val =======
-    print("\nTraining final model on full training+validation data...")
     full_train_loader = DataLoader(train_val_data, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 
-    final_models = {
+    models = {
         "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
         "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
         "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
         "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
     }
 
-    final_optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in final_models.items()}
+    optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
 
     # Final training and test evaluation, this time log to CSV
     training_loop_neg_confidences_inverse(
-        final_models, full_train_loader, val_loader=None, test_loader=test_loader,
-        optimizers=final_optimizers, loss_function="loss",
+        models, full_train_loader, val_loader=None, test_loader=test_loader,
+        optimizers=optimizers, loss_function="loss",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
         file_path=file_path, result_file=result_file  # ✅ now write results to CSV
@@ -625,217 +429,31 @@ def train_and_evaluate_neg_confidences_similarity(file_path, dataset_models, emb
 
     # Combine train and val for k-fold cross-validation
     train_val_data = train_data + val_data
-    splits = split_data_for_kfold(train_val_data, k=k_folds)
-
-    print(f"\nRunning {k_folds}-fold cross-validation for training and validation...\n")
-    for fold, (train_subset, val_subset) in enumerate(splits):
-        print(f"\nFold {fold+1}/{k_folds}...")
-        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
-
-        models = {
-            "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-            "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-            "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-            "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
-        }
-
-        optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
-
-        # Train/validate: NO test evaluation, NO CSV writing
-        training_loop_neg_confidences_similarity(
-            models, train_loader, val_loader, test_loader=None,  # test_loader not used here
-            optimizers=optimizers, loss_function="loss",
-            dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
-            embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-            file_path=file_path, result_file=None  # don't write CSV during k-fold
-        )
-
-    # ======= Final Training on Full Train+Val =======
-    print("\nTraining final model on full training+validation data...")
+    
     full_train_loader = DataLoader(train_val_data, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 
-    final_models = {
-        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-        "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
-    }
-
-    final_optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in final_models.items()}
-
-    # Final training and test evaluation, this time log to CSV
-    training_loop_neg_confidences_similarity(
-        final_models, full_train_loader, val_loader=None, test_loader=test_loader,
-        optimizers=final_optimizers, loss_function="loss",
-        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
-        embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file  # ✅ now write results to CSV
-    )
-
-    # Optionally evaluate non-uncertainty models
-    train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
-
-def train_and_evaluate_neg_confidences_graph(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
-    dataset, num_entities, num_relations, _, _, _, train_data, val_data, test_data = initialize(file_path, batch_size)
-
-    # Combine train and val for k-fold cross-validation
-    train_val_data = train_data + val_data
-    splits = split_data_for_kfold(train_val_data, k=k_folds)
-
-    print(f"\nRunning {k_folds}-fold cross-validation for training and validation...\n")
-    for fold, (train_subset, val_subset) in enumerate(splits):
-        print(f"\nFold {fold+1}/{k_folds}...")
-        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
-
-        models = {
-            "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-            "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-            "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-            "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
-        }
-
-        optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
-
-        # Train/validate: NO test evaluation, NO CSV writing
-        training_loop_neg_confidences_graph(
-            models, train_loader, val_loader, test_loader=None,  # test_loader not used here
-            optimizers=optimizers, loss_function="loss",
-            dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
-            embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-            file_path=file_path, result_file=None  # don't write CSV during k-fold
-        )
-
-    # ======= Final Training on Full Train+Val =======
-    print("\nTraining final model on full training+validation data...")
-    full_train_loader = DataLoader(train_val_data, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
-
-    final_models = {
-        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-        "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
-    }
-
-    final_optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in final_models.items()}
-
-    # Final training and test evaluation, this time log to CSV
-    training_loop_neg_confidences_graph(
-        final_models, full_train_loader, val_loader=None, test_loader=test_loader,
-        optimizers=final_optimizers, loss_function="loss",
-        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
-        embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file  # ✅ now write results to CSV
-    )
-
-    # Optionally evaluate non-uncertainty models
-    train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
-
-"""
-def train_and_evaluate_neg_confidences(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
-    dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data = initialize(file_path, batch_size)
-    
-    # Use only train + val data for k-fold
-    train_val_data = train_data + val_data
-    splits = split_data_for_kfold(train_val_data, k=k_folds)
-    
-    for fold, (train_subset, val_subset) in enumerate(splits):
-        print(f"\nFold {fold+1}/{k_folds}...")
-        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
-        
-        # Initialize the models
-        models = {
-            #"TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-            #"DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-            #"ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-            "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
-        }
-        
-        optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
-        
-        # Use the training loop with models, loaders, and optimizers
-        training_loop_neg_confidences(models, train_loader, val_loader, test_loader, optimizers, "loss", dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file)
-        
-    # Optionally evaluate models without uncertainty on the entire dataset
-    train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
-"""
-"""
-def training_loop(models, train_loader, optimizers, loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file):
-    # Training Loop
-    for name, model in models.items():
-        print(f"\nTraining {name}...")
-        loss_model = 0
-        
-        model.train()  # Set model to training mode
-        for epoch in range(num_epochs):
-            total_loss = 0
-            for batch in train_loader:
-                heads, relations, tails, confidences = batch
-                heads = torch.tensor(heads, dtype=torch.long)
-                relations = torch.tensor(relations, dtype=torch.long)
-                tails = torch.tensor(tails, dtype=torch.long)
-                confidences = torch.tensor(confidences, dtype=torch.float)
-
-                # Generate negative samples
-                neg_triples = negative_sampling_creator.negative_sampling(list(zip(heads, relations, tails, confidences)), num_entities)
-                neg_heads, neg_relations, neg_tails = zip(*neg_triples)
-                neg_heads = torch.tensor(neg_heads, dtype=torch.long)
-                neg_relations = torch.tensor(neg_relations, dtype=torch.long)
-                neg_tails = torch.tensor(neg_tails, dtype=torch.long)
-
-                # Compute loss and optimize
-                optimizers[name].zero_grad()
-                pos_triples = torch.stack([heads, relations, tails], dim=1)
-                neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
-                if loss_function == "loss":
-                    loss = model.loss(pos_triples, neg_triples, confidences, margin)
-                else:
-                    loss = model.objective_function(pos_triples, neg_triples, confidences)
-                loss.backward()
-                optimizers[name].step()
-
-                total_loss += loss.item()
-        
-            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
-        
-        loss_model = total_loss / len(train_loader)
-    
-        print(f"\nEvaluating {name}...")
-        if name == "ComplExUncertainty":
-            mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(models[name], dataset)
-        elif name == "RotatEUncertainty": 
-            mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_rotate(models[name], dataset)
-        else:
-            mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(models[name], dataset)
-
-        # Print results
-        print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
-        
-        csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
-
-def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
-    
-    dataset, num_entities, num_relations, train_loader = initialize(file_path, batch_size)
-    
-    
-    # Initialize the model
     models = {
         "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
         "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
         "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
         "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
     }
-    
+
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
-    
-    training_loop(models, train_loader, optimizers, "loss", dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file)
-        
+
+    # Final training and test evaluation, this time log to CSV
+    training_loop_neg_confidences_similarity(
+        models, full_train_loader, val_loader=None, test_loader=test_loader,
+        optimizers=optimizers, loss_function="loss",
+        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
+        embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
+        file_path=file_path, result_file=result_file  # ✅ now write results to CSV
+    )
+
+    # Optionally evaluate non-uncertainty models
     train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
-"""   
+
 def train_and_evaluate_normal_models(dataset, embedding_dim, batch_size, num_epochs, margin, result_file='evaluation_results.csv'):
     dataset = dataset
     training = dataset.training
@@ -896,27 +514,31 @@ def helper_for_normal_models(model, dataset_name, name, num_epochs, batch_size, 
     
 def train_and_evaluate_objective_function(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     
-    dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data = initialize(file_path, batch_size)
-    
-    # Use only train + val data for k-fold
+    dataset, num_entities, num_relations, _, _, _, train_data, val_data, test_data = initialize(file_path, batch_size)
+
+    # Combine train and val for k-fold cross-validation
     train_val_data = train_data + val_data
-    splits = split_data_for_kfold(train_val_data, k=k_folds)
-    
-    for fold, (train_subset, val_subset) in enumerate(splits):
-        print(f"\nFold {fold+1}/{k_folds}...")
-        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
-    
-    # Initialize the model
+
+    full_train_loader = DataLoader(train_val_data, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
+
     models = {
         "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
         "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
         "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
+        "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
     }
+
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
-        
-    training_loop(models, train_loader,val_loader, test_loader, optimizers, "objective", dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file)
-        
+
+    training_loop(
+        models, full_train_loader, val_loader=None, test_loader=test_loader,
+        optimizers=optimizers, loss_function="objective",
+        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
+        embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
+        file_path=file_path, result_file=result_file
+    )
+
     train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
 def train_transE_with_different_losses(file_path, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
@@ -926,12 +548,6 @@ def train_transE_with_different_losses(file_path, embedding_dim=50, batch_size=6
     
     # Use only train + val data for k-fold
     train_val_data = train_data + val_data
-    splits = split_data_for_kfold(train_val_data, k=k_folds)
-    
-    for fold, (train_subset, val_subset) in enumerate(splits):
-        print(f"\nFold {fold+1}/{k_folds}...")
-        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
     
     # Initialize the model
     model = TransEUncertainty(num_entities, num_relations, embedding_dim).to(device)
@@ -1006,12 +622,7 @@ def train_distmult_with_different_losses(file_path, embedding_dim=50, batch_size
     
     # Use only train + val data for k-fold
     train_val_data = train_data + val_data
-    splits = split_data_for_kfold(train_val_data, k=k_folds)
     
-    for fold, (train_subset, val_subset) in enumerate(splits):
-        print(f"\nFold {fold+1}/{k_folds}...")
-        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
     
     # Initialize the model
     model = DistMultUncertainty(num_entities, num_relations, embedding_dim).to(device)
@@ -1086,12 +697,6 @@ def train_complex_with_different_losses(file_path, embedding_dim=50, batch_size=
     
     # Use only train + val data for k-fold
     train_val_data = train_data + val_data
-    splits = split_data_for_kfold(train_val_data, k=k_folds)
-    
-    for fold, (train_subset, val_subset) in enumerate(splits):
-        print(f"\nFold {fold+1}/{k_folds}...")
-        train_loader = DataLoader(train_subset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_subset, batch_size=batch_size, shuffle=False)
     
     # Initialize the model
     model = ComplExUncertainty(num_entities, num_relations, embedding_dim).to(device)
