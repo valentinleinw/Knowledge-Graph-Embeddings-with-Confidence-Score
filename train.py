@@ -389,10 +389,10 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
             total_loss = 0
             for batch in train_loader:
                 heads, relations, tails, confidences = batch
-                heads = torch.tensor(heads, dtype=torch.long)
-                relations = torch.tensor(relations, dtype=torch.long)
-                tails = torch.tensor(tails, dtype=torch.long)
-                pos_confidences = torch.tensor(confidences, dtype=torch.float)  # Renamed for clarity
+                heads = heads.clone().detach().requires_grad_(False)
+                relations = relations.clone().detach().requires_grad_(False)
+                tails = tails.clone().detach().requires_grad_(False)
+                pos_confidences = confidences.clone().detach().requires_grad_(True)
                 
                 if isinstance(model, ComplExUncertainty):
                     # For complex-valued embeddings (real + imaginary)
@@ -437,10 +437,10 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
                     val_loss = 0
                     for batch in val_loader:
                         heads, relations, tails, confidences = batch
-                        heads = torch.tensor(heads, dtype=torch.long)
-                        relations = torch.tensor(relations, dtype=torch.long)
-                        tails = torch.tensor(tails, dtype=torch.long)
-                        pos_confidences = torch.tensor(confidences, dtype=torch.float)
+                        heads = heads.clone().detach().requires_grad_(False)
+                        relations = relations.clone().detach().requires_grad_(False)
+                        tails = tails.clone().detach().requires_grad_(False)
+                        pos_confidences = confidences.clone().detach().requires_grad_(True)
 
                         neg_quad = negative_sampling_creator.negative_sampling_cosukg(
                     list(zip(heads, relations, tails, pos_confidences)), num_entities, 10, x1=0.8, x2=0.2
