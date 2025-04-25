@@ -60,12 +60,16 @@ def initialize(file_path, batch_size):
     
     return dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data
 
-def training_loop(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file):
-    # Training Loop with validation
+def training_loop(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset,
+                  num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
+                  patience=5, delta=1e-4):
+    # Training Loop with validation and early stopping
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
-        
+        best_val_loss = float('inf')
+        epochs_no_improve = 0
+
         model.train()  # Set model to training mode
         for epoch in range(num_epochs):
             total_loss = 0
@@ -77,7 +81,8 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
                 confidences = torch.tensor(confidences, dtype=torch.float)
 
                 # Generate negative samples
-                neg_triples = negative_sampling_creator.negative_sampling(list(zip(heads, relations, tails, confidences)), num_entities)
+                neg_triples = negative_sampling_creator.negative_sampling(
+                    list(zip(heads, relations, tails, confidences)), num_entities)
                 neg_heads, neg_relations, neg_tails = zip(*neg_triples)
                 neg_heads = torch.tensor(neg_heads, dtype=torch.long)
                 neg_relations = torch.tensor(neg_relations, dtype=torch.long)
@@ -95,31 +100,79 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
                 optimizers[name].step()
 
                 total_loss += loss.item()
-        
-            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
-            
-        loss_model = total_loss / len(train_loader)
-    
+
+            avg_train_loss = total_loss / len(train_loader)
+            print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss:.4f}")
+
+            # Validation evaluation (early stopping based on this)
+            if val_loader is not None:
+                model.eval()
+                with torch.no_grad():
+                    val_loss = 0
+                    for batch in val_loader:
+                        heads, relations, tails, confidences = batch
+                        heads = torch.tensor(heads, dtype=torch.long)
+                        relations = torch.tensor(relations, dtype=torch.long)
+                        tails = torch.tensor(tails, dtype=torch.long)
+                        confidences = torch.tensor(confidences, dtype=torch.float)
+
+                        neg_triples = negative_sampling_creator.negative_sampling(
+                            list(zip(heads, relations, tails, confidences)), num_entities)
+                        neg_heads, neg_relations, neg_tails = zip(*neg_triples)
+                        neg_heads = torch.tensor(neg_heads, dtype=torch.long)
+                        neg_relations = torch.tensor(neg_relations, dtype=torch.long)
+                        neg_tails = torch.tensor(neg_tails, dtype=torch.long)
+
+                        pos_triples = torch.stack([heads, relations, tails], dim=1)
+                        neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
+                        if loss_function == "loss":
+                            loss = model.loss(pos_triples, neg_triples, confidences, margin)
+                        else:
+                            loss = model.objective_function(pos_triples, neg_triples, confidences)
+                        val_loss += loss.item()
+                
+                    avg_val_loss = val_loss / len(val_loader)
+                    print(f"Validation Loss: {avg_val_loss:.4f}")
+
+                    # Early Stopping Check
+                    if avg_val_loss < best_val_loss - delta:
+                        best_val_loss = avg_val_loss
+                        epochs_no_improve = 0
+                        # Save best model weights if you want
+                        best_model_state = model.state_dict()
+                    else:
+                        epochs_no_improve += 1
+                        print(f"No improvement for {epochs_no_improve} epoch(s).")
+                        if epochs_no_improve >= patience:
+                            print(f"Early stopping triggered at epoch {epoch+1}")
+                            model.load_state_dict(best_model_state)
+                            break
+
+        loss_model = best_val_loss
+
         print(f"\nEvaluating {name} on test set...")
-        # Test evaluation (make sure evaluator is defined correctly)
-        if test_loader is not None: 
-            if isinstance(model, ComplExUncertainty):  # Check if the model is ComplEx
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)  # Use `evaluate` here instead
+        if test_loader is not None:
+            model.eval()
+            if isinstance(model, ComplExUncertainty):
+                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)
             elif isinstance(model, RotatEUncertainty):
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_rotate(model, test_loader)
             else:
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)  # Use `evaluate` here instead
-            
-            # Print results
-            print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
-            
-            # Assuming csvEditor is a predefined object for logging results
-            csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
+                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)
 
-def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file):
+            print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
+
+            csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10,
+                                           file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
+
+def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset,
+                                        num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
+                  patience=5, delta=1e-4):
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
+        best_val_loss = float('inf')
+        epochs_no_improve = 0
         
         model.train()  # Set model to training mode
         for epoch in range(num_epochs):
@@ -155,9 +208,53 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
                 total_loss += loss.item()
         
             print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
-        
-        loss_model = total_loss / len(train_loader)
-    
+            
+            # Validation evaluation (early stopping based on this)
+            if val_loader is not None:
+                model.eval()
+                with torch.no_grad():
+                    val_loss = 0
+                    for batch in val_loader:
+                        heads, relations, tails, confidences = batch
+                        heads = torch.tensor(heads, dtype=torch.long)
+                        relations = torch.tensor(relations, dtype=torch.long)
+                        tails = torch.tensor(tails, dtype=torch.long)
+                        pos_confidences = torch.tensor(confidences, dtype=torch.float)
+
+                        neg_quad = negative_sampling_creator.negative_sampling_cosukg(
+                    list(zip(heads, relations, tails, pos_confidences)), num_entities, 10, x1=0.8, x2=0.2
+                )
+                        neg_heads, neg_relations, neg_tails, neg_confidences = zip(*neg_quad)
+                        neg_heads = torch.tensor(neg_heads, dtype=torch.long)
+                        neg_relations = torch.tensor(neg_relations, dtype=torch.long)
+                        neg_tails = torch.tensor(neg_tails, dtype=torch.long)
+                        neg_confidences = torch.tensor(neg_confidences, dtype=torch.float)  # Convert to tensor
+
+                        pos_triples = torch.stack([heads, relations, tails], dim=1)
+                        neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
+                        loss = model.loss_neg(pos_triples, neg_triples, pos_confidences, neg_confidences, margin)
+
+                        val_loss += loss.item()
+                
+                    avg_val_loss = val_loss / len(val_loader)
+                    print(f"Validation Loss: {avg_val_loss:.4f}")
+
+                    # Early Stopping Check
+                    if avg_val_loss < best_val_loss - delta:
+                        best_val_loss = avg_val_loss
+                        epochs_no_improve = 0
+                        # Save best model weights if you want
+                        best_model_state = model.state_dict()
+                    else:
+                        epochs_no_improve += 1
+                        print(f"No improvement for {epochs_no_improve} epoch(s).")
+                        if epochs_no_improve >= patience:
+                            print(f"Early stopping triggered at epoch {epoch+1}")
+                            model.load_state_dict(best_model_state)
+                            break
+
+        loss_model = best_val_loss
+            
         if test_loader is not None:
             print(f"\nEvaluating {name} on test set...")
             if isinstance(model, ComplExUncertainty):  # Check if the model is ComplEx
@@ -173,10 +270,14 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
             # Log results to CSV
             csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
 
-def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file):
+def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test_loader, optimizers,
+                                        loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
+                                        patience=5, delta=1e-4):
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
+        best_val_loss = float('inf')
+        epochs_no_improve = 0
         
         model.train()  # Set model to training mode
         for epoch in range(num_epochs):
@@ -213,7 +314,51 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
         
             print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
             
-        loss_model = total_loss / len(train_loader)
+            # Validation evaluation (early stopping based on this)
+            if val_loader is not None:
+                model.eval()
+                with torch.no_grad():
+                    val_loss = 0
+                    for batch in val_loader:
+                        heads, relations, tails, confidences = batch
+                        heads = torch.tensor(heads, dtype=torch.long)
+                        relations = torch.tensor(relations, dtype=torch.long)
+                        tails = torch.tensor(tails, dtype=torch.long)
+                        pos_confidences = torch.tensor(confidences, dtype=torch.float)
+
+                        neg_quad = negative_sampling_creator.negative_sampling_cosukg(
+                    list(zip(heads, relations, tails, pos_confidences)), num_entities, 10, x1=0.8, x2=0.2
+                )
+                        neg_heads, neg_relations, neg_tails, neg_confidences = zip(*neg_quad)
+                        neg_heads = torch.tensor(neg_heads, dtype=torch.long)
+                        neg_relations = torch.tensor(neg_relations, dtype=torch.long)
+                        neg_tails = torch.tensor(neg_tails, dtype=torch.long)
+                        neg_confidences = torch.tensor(neg_confidences, dtype=torch.float)  # Convert to tensor
+
+                        pos_triples = torch.stack([heads, relations, tails], dim=1)
+                        neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
+                        loss = model.loss_neg(pos_triples, neg_triples, pos_confidences, neg_confidences, margin)
+
+                        val_loss += loss.item()
+                
+                    avg_val_loss = val_loss / len(val_loader)
+                    print(f"Validation Loss: {avg_val_loss:.4f}")
+
+                    # Early Stopping Check
+                    if avg_val_loss < best_val_loss - delta:
+                        best_val_loss = avg_val_loss
+                        epochs_no_improve = 0
+                        # Save best model weights if you want
+                        best_model_state = model.state_dict()
+                    else:
+                        epochs_no_improve += 1
+                        print(f"No improvement for {epochs_no_improve} epoch(s).")
+                        if epochs_no_improve >= patience:
+                            print(f"Early stopping triggered at epoch {epoch+1}")
+                            model.load_state_dict(best_model_state)
+                            break
+
+        loss_model = best_val_loss
     
         if test_loader is not None:
             print(f"\nEvaluating {name} on test set...")
@@ -230,10 +375,14 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
             # Log results to CSV
             csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
 
-def training_loop_neg_confidences_similarity(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file):
+def training_loop_neg_confidences_similarity(models, train_loader, val_loader, test_loader, optimizers, 
+                                            loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
+                                            patience=5, delta=1e-4):
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
+        best_val_loss = float('inf')
+        epochs_no_improve = 0
         
         model.train()  # Set model to training mode
         for epoch in range(num_epochs):
@@ -281,7 +430,51 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
         
             print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
             
-        loss_model = total_loss / len(train_loader)
+            # Validation evaluation (early stopping based on this)
+            if val_loader is not None:
+                model.eval()
+                with torch.no_grad():
+                    val_loss = 0
+                    for batch in val_loader:
+                        heads, relations, tails, confidences = batch
+                        heads = torch.tensor(heads, dtype=torch.long)
+                        relations = torch.tensor(relations, dtype=torch.long)
+                        tails = torch.tensor(tails, dtype=torch.long)
+                        pos_confidences = torch.tensor(confidences, dtype=torch.float)
+
+                        neg_quad = negative_sampling_creator.negative_sampling_cosukg(
+                    list(zip(heads, relations, tails, pos_confidences)), num_entities, 10, x1=0.8, x2=0.2
+                )
+                        neg_heads, neg_relations, neg_tails, neg_confidences = zip(*neg_quad)
+                        neg_heads = torch.tensor(neg_heads, dtype=torch.long)
+                        neg_relations = torch.tensor(neg_relations, dtype=torch.long)
+                        neg_tails = torch.tensor(neg_tails, dtype=torch.long)
+                        neg_confidences = torch.tensor(neg_confidences, dtype=torch.float)  # Convert to tensor
+
+                        pos_triples = torch.stack([heads, relations, tails], dim=1)
+                        neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
+                        loss = model.loss_neg(pos_triples, neg_triples, pos_confidences, neg_confidences, margin)
+
+                        val_loss += loss.item()
+                
+                    avg_val_loss = val_loss / len(val_loader)
+                    print(f"Validation Loss: {avg_val_loss:.4f}")
+
+                    # Early Stopping Check
+                    if avg_val_loss < best_val_loss - delta:
+                        best_val_loss = avg_val_loss
+                        epochs_no_improve = 0
+                        # Save best model weights if you want
+                        best_model_state = model.state_dict()
+                    else:
+                        epochs_no_improve += 1
+                        print(f"No improvement for {epochs_no_improve} epoch(s).")
+                        if epochs_no_improve >= patience:
+                            print(f"Early stopping triggered at epoch {epoch+1}")
+                            model.load_state_dict(best_model_state)
+                            break
+
+        loss_model = best_val_loss
     
         if test_loader is not None:
             print(f"\nEvaluating {name} on test set...")
@@ -337,7 +530,7 @@ def evaluate_model_on_validation(model, val_loader):
     return mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5
 
 def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
-    dataset, num_entities, num_relations, _, _, _, train_data, val_data, test_data = initialize(file_path, batch_size)
+    dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
     # Combine train and val for k-fold cross-validation
     train_val_data = train_data + val_data
@@ -355,7 +548,7 @@ def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=6
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
 
     training_loop(
-        models, full_train_loader, val_loader=None, test_loader=test_loader,
+        models, full_train_loader, val_loader=val_loader, test_loader=test_loader,
         optimizers=optimizers, loss_function="loss",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
@@ -365,7 +558,7 @@ def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=6
     train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
 def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
-    dataset, num_entities, num_relations, _, _, _, train_data, val_data, test_data = initialize(file_path, batch_size)
+    dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
     # Combine train and val for k-fold cross-validation
     train_val_data = train_data + val_data
@@ -384,7 +577,7 @@ def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embeddi
 
     # Final training and test evaluation, this time log to CSV
     training_loop_neg_confidences_cosukg(
-        models, full_train_loader, val_loader=None, test_loader=test_loader,
+        models, full_train_loader, val_loader=val_loader, test_loader=test_loader,
         optimizers=optimizers, loss_function="loss",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
@@ -395,7 +588,7 @@ def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embeddi
     train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
 
 def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
-    dataset, num_entities, num_relations, _, _, _, train_data, val_data, test_data = initialize(file_path, batch_size)
+    dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
     # Combine train and val for k-fold cross-validation
     train_val_data = train_data + val_data
@@ -414,7 +607,7 @@ def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedd
 
     # Final training and test evaluation, this time log to CSV
     training_loop_neg_confidences_inverse(
-        models, full_train_loader, val_loader=None, test_loader=test_loader,
+        models, full_train_loader, val_loader=val_loader, test_loader=test_loader,
         optimizers=optimizers, loss_function="loss",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
@@ -425,7 +618,7 @@ def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedd
     train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
 
 def train_and_evaluate_neg_confidences_similarity(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
-    dataset, num_entities, num_relations, _, _, _, train_data, val_data, test_data = initialize(file_path, batch_size)
+    dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
     # Combine train and val for k-fold cross-validation
     train_val_data = train_data + val_data
@@ -444,7 +637,7 @@ def train_and_evaluate_neg_confidences_similarity(file_path, dataset_models, emb
 
     # Final training and test evaluation, this time log to CSV
     training_loop_neg_confidences_similarity(
-        models, full_train_loader, val_loader=None, test_loader=test_loader,
+        models, full_train_loader, val_loader=val_loader, test_loader=test_loader,
         optimizers=optimizers, loss_function="loss",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
@@ -514,7 +707,7 @@ def helper_for_normal_models(model, dataset_name, name, num_epochs, batch_size, 
     
 def train_and_evaluate_objective_function(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     
-    dataset, num_entities, num_relations, _, _, _, train_data, val_data, test_data = initialize(file_path, batch_size)
+    dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
     # Combine train and val for k-fold cross-validation
     train_val_data = train_data + val_data
@@ -532,7 +725,7 @@ def train_and_evaluate_objective_function(file_path, dataset_models, embedding_d
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
 
     training_loop(
-        models, full_train_loader, val_loader=None, test_loader=test_loader,
+        models, full_train_loader, val_loader=val_loader, test_loader=test_loader,
         optimizers=optimizers, loss_function="objective",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
