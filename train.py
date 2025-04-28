@@ -67,7 +67,7 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
-        best_val_loss = float('inf')
+        best_val_mrr = float('-inf')
         epochs_no_improve = 0
 
         model.train()  # Set model to training mode
@@ -108,37 +108,19 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
             if val_loader is not None:
                 model.eval()
                 with torch.no_grad():
-                    val_loss = 0
-                    for batch in val_loader:
-                        heads, relations, tails, confidences = batch
-                        heads = torch.tensor(heads, dtype=torch.long)
-                        relations = torch.tensor(relations, dtype=torch.long)
-                        tails = torch.tensor(tails, dtype=torch.long)
-                        confidences = torch.tensor(confidences, dtype=torch.float)
+                    if isinstance(model, ComplExUncertainty):
+                        _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader)
+                    elif isinstance(model, RotatEUncertainty):
+                        _, val_mrr, _, _, _ = evaluator.evaluate_rotate(model, val_loader)
+                    else:
+                        _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader)
 
-                        neg_triples = negative_sampling_creator.negative_sampling(
-                            list(zip(heads, relations, tails, confidences)), num_entities)
-                        neg_heads, neg_relations, neg_tails = zip(*neg_triples)
-                        neg_heads = torch.tensor(neg_heads, dtype=torch.long)
-                        neg_relations = torch.tensor(neg_relations, dtype=torch.long)
-                        neg_tails = torch.tensor(neg_tails, dtype=torch.long)
-
-                        pos_triples = torch.stack([heads, relations, tails], dim=1)
-                        neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
-                        if loss_function == "loss":
-                            loss = model.loss(pos_triples, neg_triples, confidences, margin)
-                        else:
-                            loss = model.objective_function(pos_triples, neg_triples, confidences)
-                        val_loss += loss.item()
-                
-                    avg_val_loss = val_loss / len(val_loader)
-                    print(f"Validation Loss: {avg_val_loss:.4f}")
+                    print(f"Validation MRR: {val_mrr:.4f}")
 
                     # Early Stopping Check
-                    if avg_val_loss < best_val_loss - delta:
-                        best_val_loss = avg_val_loss
+                    if val_mrr > best_val_mrr + delta:
+                        best_val_mrr = val_mrr
                         epochs_no_improve = 0
-                        # Save best model weights if you want
                         best_model_state = model.state_dict()
                     else:
                         epochs_no_improve += 1
@@ -147,8 +129,9 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
                             print(f"Early stopping triggered at epoch {epoch+1}")
                             model.load_state_dict(best_model_state)
                             break
+            
 
-        loss_model = best_val_loss
+        loss_model = avg_train_loss
 
         print(f"\nEvaluating {name} on test set...")
         if test_loader is not None:
@@ -171,7 +154,7 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
-        best_val_loss = float('inf')
+        best_val_mrr = float('inf')
         epochs_no_improve = 0
         
         model.train()  # Set model to training mode
@@ -209,41 +192,25 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
         
             print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
             
+            avg_train_loss = total_loss / len(train_loader)
+            
             # Validation evaluation (early stopping based on this)
             if val_loader is not None:
                 model.eval()
                 with torch.no_grad():
-                    val_loss = 0
-                    for batch in val_loader:
-                        heads, relations, tails, confidences = batch
-                        heads = torch.tensor(heads, dtype=torch.long)
-                        relations = torch.tensor(relations, dtype=torch.long)
-                        tails = torch.tensor(tails, dtype=torch.long)
-                        pos_confidences = torch.tensor(confidences, dtype=torch.float)
+                    if isinstance(model, ComplExUncertainty):
+                        _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader)
+                    elif isinstance(model, RotatEUncertainty):
+                        _, val_mrr, _, _, _ = evaluator.evaluate_rotate(model, val_loader)
+                    else:
+                        _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader)
 
-                        neg_quad = negative_sampling_creator.negative_sampling_cosukg(
-                    list(zip(heads, relations, tails, pos_confidences)), num_entities, 10, x1=0.8, x2=0.2
-                )
-                        neg_heads, neg_relations, neg_tails, neg_confidences = zip(*neg_quad)
-                        neg_heads = torch.tensor(neg_heads, dtype=torch.long)
-                        neg_relations = torch.tensor(neg_relations, dtype=torch.long)
-                        neg_tails = torch.tensor(neg_tails, dtype=torch.long)
-                        neg_confidences = torch.tensor(neg_confidences, dtype=torch.float)  # Convert to tensor
-
-                        pos_triples = torch.stack([heads, relations, tails], dim=1)
-                        neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
-                        loss = model.loss_neg(pos_triples, neg_triples, pos_confidences, neg_confidences, margin)
-
-                        val_loss += loss.item()
-                
-                    avg_val_loss = val_loss / len(val_loader)
-                    print(f"Validation Loss: {avg_val_loss:.4f}")
+                    print(f"Validation MRR: {val_mrr:.4f}")
 
                     # Early Stopping Check
-                    if avg_val_loss < best_val_loss - delta:
-                        best_val_loss = avg_val_loss
+                    if val_mrr > best_val_mrr + delta:
+                        best_val_mrr = val_mrr
                         epochs_no_improve = 0
-                        # Save best model weights if you want
                         best_model_state = model.state_dict()
                     else:
                         epochs_no_improve += 1
@@ -252,8 +219,9 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
                             print(f"Early stopping triggered at epoch {epoch+1}")
                             model.load_state_dict(best_model_state)
                             break
+            
 
-        loss_model = best_val_loss
+        loss_model = avg_train_loss
             
         if test_loader is not None:
             print(f"\nEvaluating {name} on test set...")
@@ -314,41 +282,25 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
         
             print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
             
+            avg_train_loss = total_loss / len(train_loader)
+            
             # Validation evaluation (early stopping based on this)
             if val_loader is not None:
                 model.eval()
                 with torch.no_grad():
-                    val_loss = 0
-                    for batch in val_loader:
-                        heads, relations, tails, confidences = batch
-                        heads = torch.tensor(heads, dtype=torch.long)
-                        relations = torch.tensor(relations, dtype=torch.long)
-                        tails = torch.tensor(tails, dtype=torch.long)
-                        pos_confidences = torch.tensor(confidences, dtype=torch.float)
+                    if isinstance(model, ComplExUncertainty):
+                        _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader)
+                    elif isinstance(model, RotatEUncertainty):
+                        _, val_mrr, _, _, _ = evaluator.evaluate_rotate(model, val_loader)
+                    else:
+                        _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader)
 
-                        neg_quad = negative_sampling_creator.negative_sampling_cosukg(
-                    list(zip(heads, relations, tails, pos_confidences)), num_entities, 10, x1=0.8, x2=0.2
-                )
-                        neg_heads, neg_relations, neg_tails, neg_confidences = zip(*neg_quad)
-                        neg_heads = torch.tensor(neg_heads, dtype=torch.long)
-                        neg_relations = torch.tensor(neg_relations, dtype=torch.long)
-                        neg_tails = torch.tensor(neg_tails, dtype=torch.long)
-                        neg_confidences = torch.tensor(neg_confidences, dtype=torch.float)  # Convert to tensor
-
-                        pos_triples = torch.stack([heads, relations, tails], dim=1)
-                        neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
-                        loss = model.loss_neg(pos_triples, neg_triples, pos_confidences, neg_confidences, margin)
-
-                        val_loss += loss.item()
-                
-                    avg_val_loss = val_loss / len(val_loader)
-                    print(f"Validation Loss: {avg_val_loss:.4f}")
+                    print(f"Validation MRR: {val_mrr:.4f}")
 
                     # Early Stopping Check
-                    if avg_val_loss < best_val_loss - delta:
-                        best_val_loss = avg_val_loss
+                    if val_mrr > best_val_mrr + delta:
+                        best_val_mrr = val_mrr
                         epochs_no_improve = 0
-                        # Save best model weights if you want
                         best_model_state = model.state_dict()
                     else:
                         epochs_no_improve += 1
@@ -357,8 +309,9 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
                             print(f"Early stopping triggered at epoch {epoch+1}")
                             model.load_state_dict(best_model_state)
                             break
+            
 
-        loss_model = best_val_loss
+        loss_model = avg_train_loss
     
         if test_loader is not None:
             print(f"\nEvaluating {name} on test set...")
@@ -430,41 +383,25 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
         
             print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
             
+            avg_train_loss = total_loss / len(train_loader)
+            
             # Validation evaluation (early stopping based on this)
             if val_loader is not None:
                 model.eval()
                 with torch.no_grad():
-                    val_loss = 0
-                    for batch in val_loader:
-                        heads, relations, tails, confidences = batch
-                        heads = heads.clone().detach().requires_grad_(False)
-                        relations = relations.clone().detach().requires_grad_(False)
-                        tails = tails.clone().detach().requires_grad_(False)
-                        pos_confidences = confidences.clone().detach().requires_grad_(True)
+                    if isinstance(model, ComplExUncertainty):
+                        _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader)
+                    elif isinstance(model, RotatEUncertainty):
+                        _, val_mrr, _, _, _ = evaluator.evaluate_rotate(model, val_loader)
+                    else:
+                        _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader)
 
-                        neg_quad = negative_sampling_creator.negative_sampling_cosukg(
-                    list(zip(heads, relations, tails, pos_confidences)), num_entities, 10, x1=0.8, x2=0.2
-                )
-                        neg_heads, neg_relations, neg_tails, neg_confidences = zip(*neg_quad)
-                        neg_heads = torch.tensor(neg_heads, dtype=torch.long)
-                        neg_relations = torch.tensor(neg_relations, dtype=torch.long)
-                        neg_tails = torch.tensor(neg_tails, dtype=torch.long)
-                        neg_confidences = torch.tensor(neg_confidences, dtype=torch.float)  # Convert to tensor
-
-                        pos_triples = torch.stack([heads, relations, tails], dim=1)
-                        neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
-                        loss = model.loss_neg(pos_triples, neg_triples, pos_confidences, neg_confidences, margin)
-
-                        val_loss += loss.item()
-                
-                    avg_val_loss = val_loss / len(val_loader)
-                    print(f"Validation Loss: {avg_val_loss:.4f}")
+                    print(f"Validation MRR: {val_mrr:.4f}")
 
                     # Early Stopping Check
-                    if avg_val_loss < best_val_loss - delta:
-                        best_val_loss = avg_val_loss
+                    if val_mrr > best_val_mrr + delta:
+                        best_val_mrr = val_mrr
                         epochs_no_improve = 0
-                        # Save best model weights if you want
                         best_model_state = model.state_dict()
                     else:
                         epochs_no_improve += 1
@@ -473,8 +410,9 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
                             print(f"Early stopping triggered at epoch {epoch+1}")
                             model.load_state_dict(best_model_state)
                             break
+            
 
-        loss_model = best_val_loss
+        loss_model = avg_train_loss
     
         if test_loader is not None:
             print(f"\nEvaluating {name} on test set...")
@@ -665,7 +603,7 @@ def train_and_evaluate_normal_models(dataset, embedding_dim, batch_size, num_epo
     
     model = RotatE(triples_factory=training, embedding_dim=embedding_dim)
     helper_for_normal_models(model,dataset.__class__.__name__, "RotatE", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
-
+    
 def helper_for_normal_models(model, dataset_name, name, num_epochs, batch_size, result_file, embedding_dim, training, validation, testing):
 
     model = model
@@ -717,9 +655,9 @@ def train_and_evaluate_objective_function(file_path, dataset_models, embedding_d
 
     models = {
         "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-        "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
+        #"DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
+        #"ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
+        #"RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
     }
 
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
