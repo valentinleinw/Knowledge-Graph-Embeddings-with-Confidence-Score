@@ -662,7 +662,6 @@ def train_and_evaluate_objective_function(file_path, dataset_models, embedding_d
         "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
         "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
         "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-        "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
     }
 
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
