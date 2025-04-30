@@ -528,7 +528,7 @@ def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embeddi
     )
 
     # Optionally evaluate non-uncertainty models
-    train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, "train_and_evaluate_neg_confidences_cosukg", num_epochs, margin, result_file=result_file)
+    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_cosukg", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
 
 def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
@@ -615,14 +615,14 @@ def helper_for_normal_models(model, function_name, dataset_name, name, num_epoch
 
     optimizer = Adam(params=model.get_grad_params())
 
-    training_loop = SLCWATrainingLoop(
+    training_loop_local = SLCWATrainingLoop(
         model=model,
         triples_factory=training,
         optimizer=optimizer,
     )
 
 
-    losses_per_epoch = training_loop.train(
+    losses_per_epoch = training_loop_local.train(
         triples_factory=training,
         num_epochs=num_epochs,
         batch_size=batch_size,
