@@ -498,7 +498,7 @@ def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=6
         file_path=file_path, result_file=result_file
     )
 
-    train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
 def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
@@ -528,7 +528,7 @@ def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embeddi
     )
 
     # Optionally evaluate non-uncertainty models
-    train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_cosukg", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
 
 def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
@@ -558,7 +558,7 @@ def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedd
     )
 
     # Optionally evaluate non-uncertainty models
-    train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_inverse", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
 
 def train_and_evaluate_neg_confidences_similarity(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
@@ -588,9 +588,9 @@ def train_and_evaluate_neg_confidences_similarity(file_path, dataset_models, emb
     )
 
     # Optionally evaluate non-uncertainty models
-    train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_similarity", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
 
-def train_and_evaluate_normal_models(dataset, embedding_dim, batch_size, num_epochs, margin, result_file='evaluation_results.csv'):
+def train_and_evaluate_normal_models(dataset, function_name, embedding_dim, batch_size, num_epochs, margin, result_file='evaluation_results.csv'):
     dataset = dataset
     training = dataset.training
     validation = dataset.validation
@@ -598,18 +598,18 @@ def train_and_evaluate_normal_models(dataset, embedding_dim, batch_size, num_epo
     assert validation is not None
     
     model = TransE(triples_factory=training, embedding_dim=embedding_dim)
-    helper_for_normal_models(model, dataset.__class__.__name__, "TransE", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
+    helper_for_normal_models(model, function_name, dataset.__class__.__name__, "TransE", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
     
     model = DistMult(triples_factory=training, embedding_dim=embedding_dim)
-    helper_for_normal_models(model,dataset.__class__.__name__, "DistMult", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
+    helper_for_normal_models(model, function_name, dataset.__class__.__name__, "DistMult", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
     
     model = ComplEx(triples_factory=training, embedding_dim=embedding_dim)
-    helper_for_normal_models(model,dataset.__class__.__name__, "ComplEx", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
+    helper_for_normal_models(model, function_name, dataset.__class__.__name__, "ComplEx", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
     
     model = RotatE(triples_factory=training, embedding_dim=embedding_dim)
-    helper_for_normal_models(model,dataset.__class__.__name__, "RotatE", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
+    helper_for_normal_models(model, function_name, dataset.__class__.__name__, "RotatE", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
     
-def helper_for_normal_models(model, dataset_name, name, num_epochs, batch_size, result_file, embedding_dim, training, validation, testing):
+def helper_for_normal_models(model, dataset_name, function_name, name, num_epochs, batch_size, result_file, embedding_dim, training, validation, testing):
 
     model = model
 
@@ -646,7 +646,7 @@ def helper_for_normal_models(model, dataset_name, name, num_epochs, batch_size, 
     hits_at_10 = results.get_metric('hits@10')
     
     
-    csvEditor.write_results_to_csv(result_file, name, "N/A", mrr, hits_at_1, hits_at_5, hits_at_10, dataset_name, losses_per_epoch[-1], num_epochs, embedding_dim, batch_size, "N/A")
+    csvEditor.write_results_to_csv(result_file, function_name, name, "N/A", mrr, hits_at_1, hits_at_5, hits_at_10, dataset_name, losses_per_epoch[-1], num_epochs, embedding_dim, batch_size, "N/A")
     
 def train_and_evaluate_objective_function(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     
@@ -660,9 +660,9 @@ def train_and_evaluate_objective_function(file_path, dataset_models, embedding_d
 
     models = {
         "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-        #"DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-        #"ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-        #"RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
+        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
+        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
+        "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
     }
 
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
@@ -675,7 +675,7 @@ def train_and_evaluate_objective_function(file_path, dataset_models, embedding_d
         file_path=file_path, result_file=result_file
     )
 
-    train_and_evaluate_normal_models(dataset_models, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_objective_function", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
 def train_transE_with_different_losses(file_path, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
