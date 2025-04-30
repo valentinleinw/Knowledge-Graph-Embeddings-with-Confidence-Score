@@ -159,7 +159,7 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
-        best_val_mrr = float('inf')
+        best_val_mrr = float('-inf')
         epochs_no_improve = 0
         
         model.train()  # Set model to training mode
@@ -249,7 +249,7 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
-        best_val_loss = float('inf')
+        best_val_mrr = float('-inf')
         epochs_no_improve = 0
         
         model.train()  # Set model to training mode
@@ -339,7 +339,7 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
-        best_val_loss = float('inf')
+        best_val_mrr = float('-inf')
         epochs_no_improve = 0
         
         model.train()  # Set model to training mode
