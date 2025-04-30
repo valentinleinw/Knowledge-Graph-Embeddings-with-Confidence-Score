@@ -144,8 +144,13 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)
 
             print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
+            
+            if loss_function == "loss":
+                function_name = "train_and_evaluate"
+            else:
+                function_name = "train_and_evaluate_objective_function"
 
-            csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10,
+            csvEditor.write_results_to_csv(result_file, function_name, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10,
                                            file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
 
 def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset,
@@ -236,7 +241,7 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
             print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
             
             # Log results to CSV
-            csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
+            csvEditor.write_results_to_csv(result_file, "train_and_evaluate_neg_confidences_cosukg", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
 
 def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test_loader, optimizers,
                                         loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
@@ -326,7 +331,7 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
             print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
             
             # Log results to CSV
-            csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
+            csvEditor.write_results_to_csv(result_file, "train_and_evaluate_neg_confidences_inverse", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
 
 def training_loop_neg_confidences_similarity(models, train_loader, val_loader, test_loader, optimizers, 
                                             loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
@@ -427,7 +432,7 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
             print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
             
             # Log results to CSV
-            csvEditor.write_results_to_csv(result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
+            csvEditor.write_results_to_csv(result_file, "train_and_evaluate_neg_confidences_similarity", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
 
 
 # helper
@@ -742,7 +747,7 @@ def train_transE_with_different_losses(file_path, embedding_dim=50, batch_size=6
 
         # Write to CSV
         csvEditor.write_results_to_csv(
-            result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k,
+            result_file, "train_transE_with_different_losses", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k,
             file_path, total_loss, num_epochs, embedding_dim, batch_size, margin
         )
         
@@ -817,7 +822,7 @@ def train_distmult_with_different_losses(file_path, embedding_dim=50, batch_size
 
         # Write to CSV
         csvEditor.write_results_to_csv(
-            result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k,
+            result_file, "train_distmult_with_different_losses", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k,
             file_path, total_loss, num_epochs, embedding_dim, batch_size, margin
         )
         
@@ -891,6 +896,6 @@ def train_complex_with_different_losses(file_path, embedding_dim=50, batch_size=
 
         # Write to CSV
         csvEditor.write_results_to_csv(
-            result_file, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k,
+            result_file, "train_complex_with_different_losses", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k,
             file_path, total_loss, num_epochs, embedding_dim, batch_size, margin
         )
