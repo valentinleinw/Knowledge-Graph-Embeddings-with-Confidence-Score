@@ -56,30 +56,37 @@ def negative_sampling_inverse(triples, num_entities, num_samples):
 
     return neg_quad
 
-def negative_sampling_similarity(triples, num_entities, num_samples, entity_embeddings):
+def precompute_similar_entities(entity_embeddings, top_k=10):
+    similarity_matrix = cosine_similarity(entity_embeddings)
+    top_similar = np.argsort(similarity_matrix, axis=1)[:, -top_k:]
+    similarity_scores = np.take_along_axis(similarity_matrix, top_similar, axis=1)
+    return top_similar, similarity_scores
+
+def weighted_choice(candidates, weights):
+    probabilities = weights / np.sum(weights)
+    return np.random.choice(candidates, p=probabilities)
+
+def negative_sampling_similarity(triples, num_samples, top_similar, similarity_scores):
     neg_quad = []
-    
+
     for head, relation, tail, confidence in triples:
         for _ in range(num_samples):
             if np.random.rand() > 0.5:
-                # Find a similar entity to replace the head
-                similarities = cosine_similarity(entity_embeddings[head].reshape(1, -1), entity_embeddings)
-                candidate_entities = np.argsort(similarities[0])[-10:]  # Top 10 similar entities
-                new_head = np.random.choice(candidate_entities)
+                candidates = top_similar[head]
+                weights = similarity_scores[head]
+                new_head = weighted_choice(candidates, weights)
                 new_tail = tail
+                similarity_score = similarity_scores[head][np.where(candidates == new_head)[0][0]]
             else:
-                # Find a similar entity to replace the tail
-                similarities = cosine_similarity(entity_embeddings[tail].reshape(1, -1), entity_embeddings)
-                candidate_entities = np.argsort(similarities[0])[-10:]
+                candidates = top_similar[tail]
+                weights = similarity_scores[tail]
+                new_tail = weighted_choice(candidates, weights)
                 new_head = head
-                new_tail = np.random.choice(candidate_entities)
+                similarity_score = similarity_scores[tail][np.where(candidates == new_tail)[0][0]]
             
-            # Assign a confidence score based on similarity
-            similarity_score = similarities[0][new_tail] if new_head == head else similarities[0][new_head]
-            new_confidence = confidence * similarity_score  # Higher similarity → higher confidence
-
+            new_confidence = confidence * similarity_score
             neg_quad.append((new_head, relation, new_tail, new_confidence))
-    
+
     return neg_quad
 
 def negative_sampling_graph(triples, num_samples):
