@@ -235,6 +235,7 @@ class ComplExUncertainty(nn.Module):
 
         return F.kl_div(p.log(), q, reduction="batchmean")
 
+"""
 class RotatEUncertainty(nn.Module):
     def __init__(self, num_entities, num_relations, embedding_dim):
         super(RotatEUncertainty, self).__init__()
@@ -295,3 +296,5 @@ class RotatEUncertainty(nn.Module):
         neg_loss = F.relu(neg_confidence_scores * (pos_scores - neg_scores + margin))
 
         return pos_loss.mean() + neg_loss.mean()
+        
+"""

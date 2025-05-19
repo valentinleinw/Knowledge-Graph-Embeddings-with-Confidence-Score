@@ -513,7 +513,6 @@ def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embeddi
         "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
         "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
         "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-        "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
     }
 
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
@@ -543,7 +542,6 @@ def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedd
         "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
         "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
         "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-        "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
     }
 
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
@@ -573,7 +571,6 @@ def train_and_evaluate_neg_confidences_similarity(file_path, dataset_models, emb
         "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
         "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
         "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-        "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
     }
 
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
@@ -605,9 +602,6 @@ def train_and_evaluate_normal_models(dataset, function_name, embedding_dim, batc
     
     model = ComplEx(triples_factory=training, embedding_dim=embedding_dim)
     helper_for_normal_models(model, function_name, dataset.__class__.__name__, "ComplEx", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
-    
-    model = RotatE(triples_factory=training, embedding_dim=embedding_dim)
-    helper_for_normal_models(model, function_name, dataset.__class__.__name__, "RotatE", num_epochs, batch_size, result_file, embedding_dim, training, validation, testing)
     
 def helper_for_normal_models(model, function_name, dataset_name, name, num_epochs, batch_size, result_file, embedding_dim, training, validation, testing):
 
