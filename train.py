@@ -2,7 +2,7 @@ import torch
 import torch.optim as optim
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader, Subset
-from models import TransEUncertainty, DistMultUncertainty, ComplExUncertainty, RotatEUncertainty
+from models import TransEUncertainty, DistMultUncertainty, ComplExUncertainty
 from csvEditor import csvEditor
 from pykeen.models import TransE, DistMult, ComplEx, RotatE
 from pykeen.evaluation import LCWAEvaluationLoop
@@ -670,7 +670,8 @@ def train_and_evaluate_objective_function(file_path, dataset_models, embedding_d
 
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_objective_function", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
-def train_transE_with_different_losses(file_path, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
+def train_transE_with_different_losses(file_path, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0,
+                                       result_file='evaluation_results.csv', patience = 5, delta=1e-4):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data = initialize(file_path, batch_size)
@@ -696,6 +697,8 @@ def train_transE_with_different_losses(file_path, embedding_dim=50, batch_size=6
         
         model.train()  # Set model to training mode
         total_loss = 0
+        best_val_mrr = float('-inf')
+        epochs_no_improve = 0
         
         for epoch in range(num_epochs):
             epoch_loss = 0
@@ -731,6 +734,22 @@ def train_transE_with_different_losses(file_path, embedding_dim=50, batch_size=6
             avg_epoch_loss = epoch_loss / len(train_loader)
             print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_epoch_loss}")
             total_loss += avg_epoch_loss  # Accumulate total loss properly
+
+            model.eval()
+            with torch.no_grad():
+                _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader)
+                
+            if val_mrr > best_val_mrr + delta:
+                            best_val_mrr = val_mrr
+                            epochs_no_improve = 0
+                            best_model_state = model.state_dict()
+            else:
+                epochs_no_improve += 1
+                print(f"No improvement for {epochs_no_improve} epoch(s).")
+                if epochs_no_improve >= patience:
+                    print(f"Early stopping triggered at epoch {epoch+1}")
+                    model.load_state_dict(best_model_state)
+                    break
 
         # Evaluation
         mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)
