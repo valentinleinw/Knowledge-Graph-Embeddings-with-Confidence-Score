@@ -348,7 +348,7 @@ dataset4 = ds.CoDExSmall()
 dataset5 = ds.DBpedia50()
 dataset6 = ds.Kinships()
 
-#add_confidence_score_randomly(dataset4)
+add_confidence_score_randomly(dataset4)
 
 add_confidence_score_randomly(dataset4, begin=0.5)
 
