@@ -136,8 +136,6 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
             model.eval()
             if isinstance(model, ComplExUncertainty):
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)
-            elif isinstance(model, RotatEUncertainty):
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_rotate(model, test_loader)
             else:
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)
 
@@ -228,8 +226,6 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
             print(f"\nEvaluating {name} on test set...")
             if isinstance(model, ComplExUncertainty):  # Check if the model is ComplEx
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)  # Use `evaluate` here instead
-            elif isinstance(model, RotatEUncertainty):
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_rotate(model, test_loader)
             else:
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)  # Use `evaluate` here instead
             
@@ -316,8 +312,6 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
             print(f"\nEvaluating {name} on test set...")
             if isinstance(model, ComplExUncertainty):  # Check if the model is ComplEx
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)  # Use `evaluate` here instead
-            elif isinstance(model, RotatEUncertainty):
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_rotate(model, test_loader)
             else:
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)  # Use `evaluate` here instead
             
@@ -390,8 +384,6 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
                 with torch.no_grad():
                     if isinstance(model, ComplExUncertainty):
                         _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader)
-                    elif isinstance(model, RotatEUncertainty):
-                        _, val_mrr, _, _, _ = evaluator.evaluate_rotate(model, val_loader)
                     else:
                         _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader)
 
@@ -479,7 +471,6 @@ def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=6
         "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
         "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
         "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-        "RotatEUncertainty": RotatEUncertainty(num_entities, num_relations, embedding_dim)
     }
 
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
