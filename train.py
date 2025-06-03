@@ -94,8 +94,16 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
                 neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
                 if loss_function == "loss":
                     loss = model.loss(pos_triples, neg_triples, confidences, margin)
-                else:
+                elif loss_function == "objective":
                     loss = model.objective_function(pos_triples, neg_triples, confidences)
+                elif loss_function == "softplus":
+                    loss = model.softplus_loss(pos_triples, neg_triples, confidences)
+                elif loss_function == "gaussian":
+                    loss = model.gaussian_nll_loss(pos_triples, confidences)
+                elif loss_function == "contrastive":
+                    loss = model.contrastive_loss(pos_triples, neg_triples, margin)
+                elif loss_function == "divergence":
+                    loss = model.kl_divergence_loss(pos_triples, confidences)
                 loss.backward()
                 optimizers[name].step()
 
@@ -143,8 +151,16 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
             
             if loss_function == "loss":
                 function_name = "train_and_evaluate"
-            else:
+            elif loss_function == "objective":
                 function_name = "train_and_evaluate_objective_function"
+            elif loss_function == "softplus":
+                function_name = "train_and_evaluate_softplus"
+            elif loss_function == "gaussian":
+                function_name = "train_and_evaluate_gaussian"
+            elif loss_function == "contrastive":
+                function_name = "train_and_evaluate_contrastive"
+            elif loss_function == "divergence":
+                function_name = "train_and_evaluate_divergence"
 
             csvEditor.write_results_to_csv(result_file, function_name, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10,
                                            file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
@@ -936,3 +952,126 @@ def train_complex_with_different_losses(file_path, embedding_dim=50, batch_size=
             result_file, "train_complex_with_different_losses", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k,
             file_path, total_loss, num_epochs, embedding_dim, batch_size, margin
         )
+        
+def train_and_evaluate_softplus(file_path, dataset_models, embedding_dim=50, batch_size=64, 
+                                num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
+                                patience = 5, delta=1e-4):
+    dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
+
+    # Combine train and val for k-fold cross-validation
+    train_val_data = train_data + val_data
+
+    train_loader = DataLoader(train_val_data, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
+
+    models = {
+        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
+        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
+        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
+    }
+
+    optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
+    
+    training_loop(
+        models, train_loader, val_loader=val_loader, test_loader=test_loader,
+        optimizers=optimizers, loss_function="softplus",
+        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
+        embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
+        file_path=file_path, result_file=result_file
+    )
+
+    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_softplus", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+    
+
+def train_and_evaluate_gaussian(file_path, dataset_models, embedding_dim=50, batch_size=64, 
+                                num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
+                                patience = 5, delta=1e-4):
+    
+    dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
+
+    # Combine train and val for k-fold cross-validation
+    train_val_data = train_data + val_data
+
+    train_loader = DataLoader(train_val_data, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
+
+    models = {
+        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
+        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
+        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
+    }
+
+    optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
+    
+    training_loop(
+        models, train_loader, val_loader=val_loader, test_loader=test_loader,
+        optimizers=optimizers, loss_function="gaussian",
+        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
+        embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
+        file_path=file_path, result_file=result_file
+    )
+
+    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_gaussian", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+    
+
+def train_and_evaluate_contrastive(file_path, dataset_models, embedding_dim=50, batch_size=64, 
+                                num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
+                                patience = 5, delta=1e-4):
+    
+    dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
+
+    # Combine train and val for k-fold cross-validation
+    train_val_data = train_data + val_data
+
+    train_loader = DataLoader(train_val_data, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
+
+    models = {
+        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
+        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
+        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
+    }
+
+    optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
+    
+    training_loop(
+        models, train_loader, val_loader=val_loader, test_loader=test_loader,
+        optimizers=optimizers, loss_function="contrastive",
+        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
+        embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
+        file_path=file_path, result_file=result_file
+    )
+
+    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_contrastive", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+    
+
+def train_and_evaluate_divergence(file_path, dataset_models, embedding_dim=50, batch_size=64, 
+                                num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
+                                patience = 5, delta=1e-4):
+    
+    dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
+
+    # Combine train and val for k-fold cross-validation
+    train_val_data = train_data + val_data
+
+    train_loader = DataLoader(train_val_data, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
+
+    models = {
+        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
+        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
+        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
+    }
+
+    optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
+    
+    training_loop(
+        models, train_loader, val_loader=val_loader, test_loader=test_loader,
+        optimizers=optimizers, loss_function="divergence",
+        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
+        embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
+        file_path=file_path, result_file=result_file
+    )
+
+    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_divergence", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+    
