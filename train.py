@@ -61,7 +61,7 @@ def initialize(file_path, batch_size):
     return dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data
 
 def training_loop(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset,
-                  num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
+                  num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file, folder,
                   patience=5, delta=1e-4):
     # Training Loop with validation and early stopping
     for name, model in models.items():
@@ -162,7 +162,7 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
             elif loss_function == "divergence":
                 function_name = "train_and_evaluate_divergence"
 
-            csvEditor.write_results_to_csv(result_file, function_name, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10,
+            csvEditor.write_results_to_csv(result_file, folder, function_name, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10,
                                            file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
 
 def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset,
@@ -474,7 +474,7 @@ def evaluate_model_on_validation(model, val_loader):
     
     return mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5
 
-def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
+def train_and_evaluate(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
     # Combine train and val for k-fold cross-validation
@@ -496,12 +496,12 @@ def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=6
         optimizers=optimizers, loss_function="loss",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file
+        file_path=file_path, result_file=result_file, folder=folder
     )
 
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
-def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
+def train_and_evaluate_neg_confidences_cosukg(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
     # Combine train and val for k-fold cross-validation
@@ -524,13 +524,13 @@ def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embeddi
         optimizers=optimizers, loss_function="loss",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file  # ✅ now write results to CSV
+        file_path=file_path, result_file=result_file, folder=folder
     )
 
     # Optionally evaluate non-uncertainty models
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_cosukg", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
 
-def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
+def train_and_evaluate_neg_confidences_inverse(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
     # Combine train and val for k-fold cross-validation
@@ -553,13 +553,13 @@ def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedd
         optimizers=optimizers, loss_function="loss",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file  # ✅ now write results to CSV
+        file_path=file_path, result_file=result_file, folder=folder
     )
 
     # Optionally evaluate non-uncertainty models
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_inverse", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
 
-def train_and_evaluate_neg_confidences_similarity(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
+def train_and_evaluate_neg_confidences_similarity(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
     # Combine train and val for k-fold cross-validation
@@ -582,7 +582,7 @@ def train_and_evaluate_neg_confidences_similarity(file_path, dataset_models, emb
         optimizers=optimizers, loss_function="loss",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file  # ✅ now write results to CSV
+        file_path=file_path, result_file=result_file, folder=folder
     )
 
     # Optionally evaluate non-uncertainty models
@@ -643,7 +643,7 @@ def helper_for_normal_models(model, function_name, dataset_name, name, num_epoch
     
     csvEditor.write_results_to_csv(result_file, function_name, name, "N/A", mrr, hits_at_1, hits_at_5, hits_at_10, dataset_name, losses_per_epoch[-1], num_epochs, embedding_dim, batch_size, "N/A")
     
-def train_and_evaluate_objective_function(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
+def train_and_evaluate_objective_function(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
@@ -666,294 +666,12 @@ def train_and_evaluate_objective_function(file_path, dataset_models, embedding_d
         optimizers=optimizers, loss_function="objective",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file
+        file_path=file_path, result_file=result_file, folder=folder
     )
 
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_objective_function", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
-    
-def train_transE_with_different_losses(file_path, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0,
-                                       result_file='evaluation_results.csv', patience = 5, delta=1e-4):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data = initialize(file_path, batch_size)
-    
-    # Use only train + val data for k-fold
-    train_val_data = train_data + val_data
-    
-    # Initialize the model
-    model = TransEUncertainty(num_entities, num_relations, embedding_dim).to(device)
-    
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-    
-    loss_functions = {
-        "softplus": model.softplus_loss,
-        "gaussian": model.gaussian_nll_loss,
-        "contrastive": model.contrastive_loss,
-        "divergence": model.kl_divergence_loss,
-        "objective_function": model.objective_function
-    }
-    
-    for name, loss_function in loss_functions.items():
-        print(f"\nTraining {name}...")
-        
-        model.train()  # Set model to training mode
-        total_loss = 0
-        best_val_mrr = float('-inf')
-        epochs_no_improve = 0
-        
-        for epoch in range(num_epochs):
-            epoch_loss = 0
-            for batch in train_loader:
-                heads, relations, tails, confidences = [x.to(device) for x in batch]
-                
-                # Generate negative samples
-                neg_triples = negative_sampling_creator.negative_sampling(list(zip(heads.cpu(), relations.cpu(), tails.cpu(), confidences.cpu())), num_entities)
-                neg_heads, neg_relations, neg_tails = zip(*neg_triples)
-                
-                neg_heads = torch.tensor(neg_heads, dtype=torch.long, device=device)
-                neg_relations = torch.tensor(neg_relations, dtype=torch.long, device=device)
-                neg_tails = torch.tensor(neg_tails, dtype=torch.long, device=device)
-
-                # Compute loss and optimize
-                optimizer.zero_grad()
-                pos_triples = torch.stack([heads, relations, tails], dim=1)
-                neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
-                
-                # Compute loss dynamically based on function selection
-                if name == "contrastive":
-                    loss = loss_function(pos_triples, neg_triples, margin)
-                elif name in ["objective_function", "softplus"]:
-                    loss = loss_function(pos_triples, neg_triples, confidences)
-                else:
-                    loss = loss_function(pos_triples, confidences)
-                
-                loss.backward()
-                optimizer.step()
-                
-                epoch_loss += loss.item()
             
-            avg_epoch_loss = epoch_loss / len(train_loader)
-            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_epoch_loss}")
-            total_loss += avg_epoch_loss  # Accumulate total loss properly
-
-            model.eval()
-            with torch.no_grad():
-                _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader)
-                
-            if val_mrr > best_val_mrr + delta:
-                            best_val_mrr = val_mrr
-                            epochs_no_improve = 0
-                            best_model_state = model.state_dict()
-            else:
-                epochs_no_improve += 1
-                print(f"No improvement for {epochs_no_improve} epoch(s).")
-                if epochs_no_improve >= patience:
-                    print(f"Early stopping triggered at epoch {epoch+1}")
-                    model.load_state_dict(best_model_state)
-                    break
-
-        # Evaluation
-        mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)
-
-        # Print results
-        print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_k}")
-
-        # Write to CSV
-        csvEditor.write_results_to_csv(
-            result_file, "train_transE_with_different_losses", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k,
-            file_path, total_loss, num_epochs, embedding_dim, batch_size, margin
-        )
-        
-def train_distmult_with_different_losses(file_path, embedding_dim=50, batch_size=64, num_epochs=10, 
-                                         margin=1.0, result_file='evaluation_results.csv',
-                                        patience = 5, delta=1e-4):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data = initialize(file_path, batch_size)
-    
-    # Use only train + val data for k-fold
-    train_val_data = train_data + val_data
-    
-    
-    # Initialize the model
-    model = DistMultUncertainty(num_entities, num_relations, embedding_dim).to(device)
-    
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-    
-    loss_functions = {
-        "softplus": model.softplus_loss,
-        "gaussian": model.gaussian_nll_loss,
-        "contrastive": model.contrastive_loss,
-        "divergence": model.kl_divergence_loss,
-        "objective_function": model.objective_function
-    }
-    
-    for name, loss_function in loss_functions.items():
-        print(f"\nTraining {name}...")
-        
-        model.train()  # Set model to training mode
-        total_loss = 0
-        best_val_mrr = float('-inf')
-        epochs_no_improve = 0
-        
-        for epoch in range(num_epochs):
-            epoch_loss = 0
-            for batch in train_loader:
-                heads, relations, tails, confidences = [x.to(device) for x in batch]
-                
-                # Generate negative samples
-                neg_triples = negative_sampling_creator.negative_sampling(list(zip(heads.cpu(), relations.cpu(), tails.cpu(), confidences.cpu())), num_entities)
-                neg_heads, neg_relations, neg_tails = zip(*neg_triples)
-                
-                neg_heads = torch.tensor(neg_heads, dtype=torch.long, device=device)
-                neg_relations = torch.tensor(neg_relations, dtype=torch.long, device=device)
-                neg_tails = torch.tensor(neg_tails, dtype=torch.long, device=device)
-
-                # Compute loss and optimize
-                optimizer.zero_grad()
-                pos_triples = torch.stack([heads, relations, tails], dim=1)
-                neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
-                
-                # Compute loss dynamically based on function selection
-                if name == "contrastive":
-                    loss = loss_function(pos_triples, neg_triples, margin)
-                elif name in ["objective_function", "softplus"]:
-                    loss = loss_function(pos_triples, neg_triples, confidences)
-                else:
-                    loss = loss_function(pos_triples, confidences)
-                
-                loss.backward()
-                optimizer.step()
-                
-                epoch_loss += loss.item()
-            
-            avg_epoch_loss = epoch_loss / len(train_loader)
-            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_epoch_loss}")
-            total_loss += avg_epoch_loss  # Accumulate total loss properly
-            
-            model.eval()
-            with torch.no_grad():
-                _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader)
-                
-            if val_mrr > best_val_mrr + delta:
-                            best_val_mrr = val_mrr
-                            epochs_no_improve = 0
-                            best_model_state = model.state_dict()
-            else:
-                epochs_no_improve += 1
-                print(f"No improvement for {epochs_no_improve} epoch(s).")
-                if epochs_no_improve >= patience:
-                    print(f"Early stopping triggered at epoch {epoch+1}")
-                    model.load_state_dict(best_model_state)
-                    break
-
-        # Evaluation
-        mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)
-
-        # Print results
-        print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_k}")
-
-        # Write to CSV
-        csvEditor.write_results_to_csv(
-            result_file, "train_distmult_with_different_losses", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k,
-            file_path, total_loss, num_epochs, embedding_dim, batch_size, margin
-        )
-        
-def train_complex_with_different_losses(file_path, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0,
-                                        result_file='evaluation_results.csv',
-                                        patience = 5, delta=1e-4):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data = initialize(file_path, batch_size)
-    
-    # Use only train + val data for k-fold
-    train_val_data = train_data + val_data
-    
-    # Initialize the model
-    model = ComplExUncertainty(num_entities, num_relations, embedding_dim).to(device)
-    
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-
-    loss_functions = {
-        "softplus": model.softplus_loss,
-        "gaussian": model.gaussian_nll_loss,
-        "contrastive": model.contrastive_loss,
-        "divergence": model.kl_divergence_loss,
-        "objective_function": model.objective_function
-    }
-    
-    for name, loss_function in loss_functions.items():
-        print(f"\nTraining {name}...")
-        
-        model.train()  # Set model to training mode
-        total_loss = 0
-        best_val_mrr = float('-inf')
-        epochs_no_improve = 0
-        
-        for epoch in range(num_epochs):
-            epoch_loss = 0
-            for batch in train_loader:
-                heads, relations, tails, confidences = [x.to(device) for x in batch]
-                
-                # Generate negative samples
-                neg_triples = negative_sampling_creator.negative_sampling(list(zip(heads.cpu(), relations.cpu(), tails.cpu(), confidences.cpu())), num_entities)
-                neg_heads, neg_relations, neg_tails = zip(*neg_triples)
-                
-                neg_heads = torch.tensor(neg_heads, dtype=torch.long, device=device)
-                neg_relations = torch.tensor(neg_relations, dtype=torch.long, device=device)
-                neg_tails = torch.tensor(neg_tails, dtype=torch.long, device=device)
-
-                # Compute loss and optimize
-                optimizer.zero_grad()
-                pos_triples = torch.stack([heads, relations, tails], dim=1)
-                neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
-                
-                # Compute loss dynamically based on function selection
-                if name == "contrastive":
-                    loss = loss_function(pos_triples, neg_triples, margin)
-                elif name in ["objective_function", "softplus"]:
-                    loss = loss_function(pos_triples, neg_triples, confidences)
-                else:
-                    loss = loss_function(pos_triples, confidences)
-                
-                loss.backward()
-                optimizer.step()
-                
-                epoch_loss += loss.item()
-            
-            avg_epoch_loss = epoch_loss / len(train_loader)
-            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_epoch_loss}")
-            total_loss += avg_epoch_loss  # Accumulate total loss properly
-            
-            model.eval()
-            with torch.no_grad():
-                _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader)
-                
-            if val_mrr > best_val_mrr + delta:
-                            best_val_mrr = val_mrr
-                            epochs_no_improve = 0
-                            best_model_state = model.state_dict()
-            else:
-                epochs_no_improve += 1
-                print(f"No improvement for {epochs_no_improve} epoch(s).")
-                if epochs_no_improve >= patience:
-                    print(f"Early stopping triggered at epoch {epoch+1}")
-                    model.load_state_dict(best_model_state)
-                    break
-
-        # Evaluation
-        mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)
-
-        # Print results
-        print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_k}")
-
-        # Write to CSV
-        csvEditor.write_results_to_csv(
-            result_file, "train_complex_with_different_losses", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k,
-            file_path, total_loss, num_epochs, embedding_dim, batch_size, margin
-        )
-        
-def train_and_evaluate_softplus(file_path, dataset_models, embedding_dim=50, batch_size=64, 
+def train_and_evaluate_softplus(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, 
                                 num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
                                 patience = 5, delta=1e-4):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
@@ -977,13 +695,13 @@ def train_and_evaluate_softplus(file_path, dataset_models, embedding_dim=50, bat
         optimizers=optimizers, loss_function="softplus",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file
+        file_path=file_path, result_file=result_file, folder=folder
     )
 
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_softplus", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
 
-def train_and_evaluate_gaussian(file_path, dataset_models, embedding_dim=50, batch_size=64, 
+def train_and_evaluate_gaussian(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, 
                                 num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
                                 patience = 5, delta=1e-4):
     
@@ -1008,13 +726,13 @@ def train_and_evaluate_gaussian(file_path, dataset_models, embedding_dim=50, bat
         optimizers=optimizers, loss_function="gaussian",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file
+        file_path=file_path, result_file=result_file, folder=folder
     )
 
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_gaussian", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
 
-def train_and_evaluate_contrastive(file_path, dataset_models, embedding_dim=50, batch_size=64, 
+def train_and_evaluate_contrastive(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, 
                                 num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
                                 patience = 5, delta=1e-4):
     
@@ -1039,13 +757,13 @@ def train_and_evaluate_contrastive(file_path, dataset_models, embedding_dim=50, 
         optimizers=optimizers, loss_function="contrastive",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file
+        file_path=file_path, result_file=result_file, folder=folder
     )
 
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_contrastive", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
 
-def train_and_evaluate_divergence(file_path, dataset_models, embedding_dim=50, batch_size=64, 
+def train_and_evaluate_divergence(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, 
                                 num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
                                 patience = 5, delta=1e-4):
     
@@ -1070,7 +788,7 @@ def train_and_evaluate_divergence(file_path, dataset_models, embedding_dim=50, b
         optimizers=optimizers, loss_function="divergence",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file
+        file_path=file_path, result_file=result_file, folder=folder
     )
 
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_divergence", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
