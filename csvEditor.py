@@ -20,12 +20,17 @@ class csvEditor():
         print(f"Dataset with confidence scores saved successfully at: {file_path}")
         
     @staticmethod
-    def write_results_to_csv(file_name, function_name, model_name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, dataset_file, loss, epochs, embDims, batchSize, margin):
+    def write_results_to_csv(file_name, subfolder_name, function_name, model_name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_k, dataset_file, loss, epochs, embDims, batchSize, margin):
+        
+        os.makedirs(subfolder_name, exist_ok=True)
+        
+        full_file_path = os.path.join(subfolder_name, file_name)
+        
         # Check if the file exists to write headers only once
-        file_exists = os.path.exists(file_name)
+        file_exists = os.path.exists(full_file_path)
 
         # Open the file in append mode ('a') to add new rows instead of overwriting
-        with open(file_name, mode="a", newline="") as file:
+        with open(full_file_path, mode="a", newline="") as file:
             fieldnames = ["Model", "Dataset", "Function", "Epochs", "Embedding Dims", "Batch Size", "Margin", "Loss", "Mean Rank", "MRR", "Hits@1", "Hits@5", "Hits@10"]
             writer = csv.DictWriter(file, fieldnames=fieldnames)
 
