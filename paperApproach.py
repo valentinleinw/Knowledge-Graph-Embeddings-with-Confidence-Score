@@ -67,8 +67,8 @@ def bounded_rectifier(dataset):
     
     csvEditor.save_to_csv_paper(dataset, confidence_scores, triples, "bounded")
     
-logistic_function(ds.UMLS())
-bounded_rectifier(ds.UMLS())
+logistic_function(ds.WN18RR())
+bounded_rectifier(ds.WN18RR())
     
     
     

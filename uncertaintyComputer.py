@@ -325,7 +325,107 @@ def add_confidence_score_logical_rules(dataset, num_epochs, batch_size, embeddin
     
     csvEditor.save_to_csv(df, dataset, "logical")
 
+def add_confidence_score_logical_rules_with_distmult(dataset, num_epochs, batch_size, embedding_dim):
+        
+    df = compute_confidence_score(DistMult, dataset, num_epochs, batch_size, embedding_dim)
+    
+    triples = {}
+    for _, row in df.iterrows():
+        triples[(row["head"], row["tail"])] = row["confidence_score"]
+    
+    def apply_transitivity_rule(df, triples):
+        for index, row in df.iterrows():
+            head, tail = row["head"], row["tail"]
+            if (head, tail) in triples:  # Check if direct connection exists
+                direct_conf = triples[(head, tail)]
+                
+                # Look for transitive relations
+                for middle_entity in df['head']:
+                    if (tail, middle_entity) in triples:  # If there's a second hop
+                        transitive_conf = triples.get((tail, middle_entity), 0)
+                        new_conf = min(direct_conf, transitive_conf)
+                        # Boost the confidence of the third entity connection
+                        triples[(head, middle_entity)] = max(triples.get((head, middle_entity), 0), new_conf)
 
+        # Update the dataframe with new confidence scores
+        for (h, t), conf in triples.items():
+            df.loc[(df["head"] == h) & (df["tail"] == t), "confidence_score"] = conf
+        return df
+    
+    def apply_similarity_rule(df):
+        head_dict = defaultdict(list)
+
+        # Populate the dictionary with head -> (tail, confidence)
+        for _, row in df.iterrows():
+            head_dict[row["head"]].append((row["tail"], row["confidence_score"]))
+        
+        # Boost confidence for similar head entities
+        for head, connections in head_dict.items():
+            for i in range(len(connections)):
+                for j in range(i + 1, len(connections)):
+                    tail_i, conf_i = connections[i]
+                    tail_j, conf_j = connections[j]
+                    
+                    # Apply rule: Boost the confidence if both share the same head
+                    new_conf = max(conf_i, conf_j)
+                    if new_conf < 1:
+                        df.loc[(df["head"] == head) & (df["tail"] == tail_j), "confidence_score"] = new_conf
+                        df.loc[(df["head"] == head) & (df["tail"] == tail_i), "confidence_score"] = new_conf
+        return df
+    
+    def apply_frequency_rule(df):
+        entity_freq = pd.concat([df['head'], df['tail']]).value_counts()
+
+        # Propagate confidence based on frequency
+        for _, row in df.iterrows():
+            head_freq = entity_freq.get(row["head"], 0)
+            tail_freq = entity_freq.get(row["tail"], 0)
+            
+            # If the entities appear frequently, boost the confidence score
+            if head_freq > 1 and tail_freq > 1:
+                df.loc[(df["head"] == row["head"]) & (df["tail"] == row["tail"]), "confidence_score"] *= 1.2  # Boost by 20%
+                df["confidence_score"] = df["confidence_score"].clip(upper=1)  # Ensure confidence doesn't exceed 1
+        return df
+    
+    def apply_symmetry_rule(df, triples):
+        # Iterate over each row in the dataset
+        for index, row in df.iterrows():
+            head, tail = row["head"], row["tail"]
+            if (head, tail) in triples:
+                direct_conf = triples[(head, tail)]
+                
+                # Check if the inverse (tail -> head) exists in the triples dictionary
+                if (tail, head) in triples:
+                    inverse_conf = triples[(tail, head)]
+                    
+                    # If the inverse exists and has a lower confidence, boost it to match the direct relation
+                    if inverse_conf < direct_conf:
+                        triples[(tail, head)] = direct_conf  # Set the same confidence for the inverse
+                    else:
+                        triples[(head, tail)] = inverse_conf
+
+        
+        # Update the DataFrame with new confidence scores for inverse relations
+        for (h, t), conf in triples.items():
+            df.loc[(df["head"] == h) & (df["tail"] == t), "confidence_score"] = conf
+            
+        return df
+    
+    def apply_all_rules(df, triples):
+        # Apply all logical rules including symmetry
+        df = apply_transitivity_rule(df, triples)  # Apply transitivity rule
+        df = apply_similarity_rule(df)  # Apply similarity rule
+        df = apply_frequency_rule(df)  # Apply frequency rule
+        df = apply_symmetry_rule(df, triples)  # Apply symmetry rule
+
+        # Normalize confidence scores after applying all rules
+        df['confidence_score'] = (df['confidence_score'] - df['confidence_score'].min()) / (df['confidence_score'].max() - df['confidence_score'].min())
+        
+        return df
+    
+    df = apply_all_rules(df, triples)
+    
+    csvEditor.save_to_csv(df, dataset, "logical_with_distmult")
 """    
 addConfidenceScoreRandomly(0.1, 0.2)
 addConfidenceScoreBasedOnDataset(TransE, "TransE")
@@ -347,25 +447,37 @@ dataset2 = ds.AristoV4()
 dataset4 = ds.CoDExSmall()
 dataset5 = ds.DBpedia50()
 dataset6 = ds.Kinships()
+dataset7 = ds.CoDExMedium()
+dataset8 = ds.WN18RR()
 
-add_confidence_score_randomly(dataset4)
+add_confidence_score_randomly(dataset8)
 
-add_confidence_score_randomly(dataset4, begin=0.5)
+add_confidence_score_randomly(dataset8, begin=0.5)
 
-add_confidence_score_randomly(dataset4, end=0.5)
+add_confidence_score_randomly(dataset8, end=0.5)
 
-add_confidence_score_based_on_model(dataset4, TransE, "TransE", 200, 2048, 500)
+add_confidence_score_based_on_model(dataset8, TransE, "TransE", 200, 2048, 500)
 
-add_confidence_score_based_on_model(dataset4, DistMult, "DistMult", 200, 2048, 500)
+add_confidence_score_based_on_model(dataset8, DistMult, "DistMult", 200, 2048, 500)
 
-add_confidence_score_based_on_model(dataset4, ComplEx, "ComplEx", 200, 2048, 500)
+add_confidence_score_based_on_model(dataset8, ComplEx, "ComplEx", 200, 2048, 500)
 
-add_confidence_score_based_on_dataset_average(dataset4, 200, 2048, 500)
+add_confidence_score_based_on_dataset_average(dataset8, 200, 2048, 500)
 
-add_confidence_score_based_on_dataset_agreement(dataset4, 200, 2048, 500)
+add_confidence_score_based_on_dataset_agreement(dataset8, 200, 2048, 500)
 
-add_confidence_score_based_on_appearances(dataset4)
+add_confidence_score_based_on_appearances(dataset8)
 
-add_confidence_score_based_on_appearances_ranked(dataset4)
+add_confidence_score_based_on_appearances_ranked(dataset8)
+
+add_confidence_score_logical_rules(dataset8, 200, 2048, 500)
+
+add_confidence_score_logical_rules(dataset7, 200, 2048, 500)
+
+add_confidence_score_logical_rules(dataset7, 200, 2048, 500)
+
+add_confidence_score_logical_rules(dataset8, 200, 2048, 500)
+
+add_confidence_score_logical_rules(dataset, 200, 2048, 500)
 
 add_confidence_score_logical_rules(dataset4, 200, 2048, 500)
