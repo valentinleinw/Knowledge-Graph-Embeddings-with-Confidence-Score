@@ -474,10 +474,10 @@ add_confidence_score_logical_rules(dataset8, 200, 2048, 500)
 
 add_confidence_score_logical_rules(dataset7, 200, 2048, 500)
 
-add_confidence_score_logical_rules(dataset7, 200, 2048, 500)
+add_confidence_score_logical_rules_with_distmult(dataset7, 200, 2048, 500)
 
-add_confidence_score_logical_rules(dataset8, 200, 2048, 500)
+add_confidence_score_logical_rules_with_distmult(dataset8, 200, 2048, 500)
 
-add_confidence_score_logical_rules(dataset, 200, 2048, 500)
+add_confidence_score_logical_rules_with_distmult(dataset, 200, 2048, 500)
 
-add_confidence_score_logical_rules(dataset4, 200, 2048, 500)
+add_confidence_score_logical_rules_with_distmult(dataset4, 200, 2048, 500)
