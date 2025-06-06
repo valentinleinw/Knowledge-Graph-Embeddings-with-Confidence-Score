@@ -42,6 +42,8 @@ def compute_embeddings(dataset):
         dataset.validation.mapped_triples,
         dataset.testing.mapped_triples
     ])
+    
+    model.eval()
 
     plausibility = model.score_hrt(triples)
     
