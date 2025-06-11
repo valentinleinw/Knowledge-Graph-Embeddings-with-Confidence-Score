@@ -10,34 +10,32 @@ def evaluate(model, test_loader, device='cpu', top_k=10):
     hits_at_5 = 0
 
     # Get all entity and relation embeddings
-    entity_embeddings = model.entity_embeddings.weight.to(device)  # (num_entities, embedding_dim)
-    relation_embeddings = model.relation_embeddings.weight.to(device)  # (num_relations, embedding_dim)
+    entity_embeddings = model.entity_embeddings.weight.to(device)
+    relation_embeddings = model.relation_embeddings.weight.to(device)
 
     with torch.no_grad():  # Disable gradient calculation
         for batch in test_loader:
             heads, relations, tails, confidences = batch
-            heads = heads.to(device)  # (batch_size,)
-            relations = relations.to(device)  # (batch_size,)
-            tails = tails.to(device)  # (batch_size,)
-            confidences = confidences.to(device)  # (batch_size,)
+            heads = heads.to(device)
+            relations = relations.to(device)
+            tails = tails.to(device)
+            confidences = confidences.to(device)
 
             # Compute embeddings for the current batch
             head_embeddings = entity_embeddings[heads]  # (batch_size, embedding_dim)
             relation_embeddings_batch = relation_embeddings[relations]  # (batch_size, embedding_dim)
-            tail_embeddings = entity_embeddings[tails]  # (batch_size, embedding_dim)
 
             # Compute scores for all entities (full set of entities)
             # Broadcasting head_embeddings and relation_embeddings_batch over all entities
             all_scores = torch.norm(
                 head_embeddings.unsqueeze(1) + relation_embeddings_batch.unsqueeze(1) - entity_embeddings, p=1, dim=2
-            )  # (batch_size, num_entities)
+            ) 
 
             # Get the rank of the correct tail entity for each instance in the batch
             for i in range(len(tails)):
-                rank = (torch.argsort(all_scores[i], descending=False) == tails[i]).nonzero(as_tuple=True)[0].item() + 1  # 1-based rank
+                rank = (torch.argsort(all_scores[i], descending=False) == tails[i]).nonzero(as_tuple=True)[0].item() + 1
                 ranks.append((rank, confidences[i]))
 
-                # Check for Hits@1 and Hits@5
                 hits_at_1 += (rank == 1)
                 hits_at_5 += (rank <= 5)
 
@@ -53,7 +51,10 @@ def evaluate(model, test_loader, device='cpu', top_k=10):
 
     return mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5
 
-
+"""
+Can not use the same evaluation for ComplEx as TransE and DistMult 
+because of the imaginary dimension
+"""
 def evaluate_complex(model, test_loader, device='cpu', top_k=10):
     model.eval()
     ranks = []
@@ -61,24 +62,24 @@ def evaluate_complex(model, test_loader, device='cpu', top_k=10):
     hits_at_5 = 0
 
     # Get all entity and relation embeddings
-    entity_re_embeddings = model.entity_re_embeddings.weight.data.to(device)  # (num_entities, embedding_dim)
-    entity_im_embeddings = model.entity_im_embeddings.weight.data.to(device)  # (num_entities, embedding_dim)
-    relation_re_embeddings = model.relation_re_embeddings.weight.data.to(device)  # (num_relations, embedding_dim)
-    relation_im_embeddings = model.relation_im_embeddings.weight.data.to(device)  # (num_relations, embedding_dim)
+    entity_re_embeddings = model.entity_re_embeddings.weight.data.to(device)  
+    entity_im_embeddings = model.entity_im_embeddings.weight.data.to(device)  
+    relation_re_embeddings = model.relation_re_embeddings.weight.data.to(device)  
+    relation_im_embeddings = model.relation_im_embeddings.weight.data.to(device)  
 
     with torch.no_grad():  # Disable gradient calculation
         for batch in test_loader:
             heads, relations, tails, confidences = batch
-            heads = heads.to(device)  # (batch_size,)
-            relations = relations.to(device)  # (batch_size,)
-            tails = tails.to(device)  # (batch_size,)
-            confidences = confidences.to(device)  # (batch_size,)
+            heads = heads.to(device)  
+            relations = relations.to(device)  
+            tails = tails.to(device)  
+            confidences = confidences.to(device)  
 
             # Extract the embeddings for the current batch
-            head_real = entity_re_embeddings[heads]  # (batch_size, embedding_dim)
-            head_imag = entity_im_embeddings[heads]  # (batch_size, embedding_dim)
-            relation_real = relation_re_embeddings[relations]  # (batch_size, embedding_dim)
-            relation_imag = relation_im_embeddings[relations]  # (batch_size, embedding_dim)
+            head_real = entity_re_embeddings[heads]  
+            head_imag = entity_im_embeddings[heads]  
+            relation_real = relation_re_embeddings[relations]  
+            relation_imag = relation_im_embeddings[relations] 
 
             # Compute all possible entity scores
             # Broadcasting head + relation embeddings over the full set of entity embeddings
@@ -94,7 +95,7 @@ def evaluate_complex(model, test_loader, device='cpu', top_k=10):
                 (head_real_exp * relation_imag_exp * entity_im_embeddings) -
                 (head_imag_exp * relation_imag_exp * entity_re_embeddings),
                 dim=2  # Sum over embedding_dim
-            )  # (batch_size, num_entities)
+            ) 
 
             # For each batch, calculate the rank of the correct tail entity
             for i in range(len(tails)):
