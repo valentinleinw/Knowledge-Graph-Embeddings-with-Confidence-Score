@@ -1,16 +1,15 @@
 import torch
 import torch.optim as optim
 import pandas as pd
-from torch.utils.data import Dataset, DataLoader, Subset
+from torch.utils.data import Dataset, DataLoader
 from models import TransEUncertainty, DistMultUncertainty, ComplExUncertainty
 from csvEditor import csvEditor
-from pykeen.models import TransE, DistMult, ComplEx, RotatE
+from pykeen.models import TransE, DistMult, ComplEx
 from pykeen.evaluation import LCWAEvaluationLoop
 from torch.optim import Adam
 from pykeen.training import SLCWATrainingLoop
 import evaluator
 import negative_sampling_creator
-from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split
 import numpy as np
 

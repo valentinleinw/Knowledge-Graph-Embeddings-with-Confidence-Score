@@ -426,21 +426,9 @@ def add_confidence_score_logical_rules_with_distmult(dataset, num_epochs, batch_
     df = apply_all_rules(df, triples)
     
     csvEditor.save_to_csv(df, dataset, "logical_with_distmult")
-"""    
-addConfidenceScoreRandomly(0.1, 0.2)
-addConfidenceScoreBasedOnDataset(TransE, "TransE")
-addConfidenceScoreBasedOnDataset(DistMult, "DistMult")
-addConfidenceScoreBasedOnDataset(ComplEx, "ComplEx")
-"""    
+  
 
     
-# 1. compute the scores for all three models and take the average (done)
-# 2. compute the scores for all models and if they all give high scores then use the average high score, else use a lower score (done)
-# 3. find entities and relations that appear the most and give the confidence score based on the appearance (not really a good way if we want to have a completely new dataset)
-# --> more or less done
-# 4. use PageRank for confidence score --> for now do not know if this will work
-# 5. use logical rules ( -> for example first use the confidence score computed by the models and then modify the scores based on this rules)
-
 dataset = ds.UMLS()
 dataset2 = ds.AristoV4()
 #dataset3 = ds.CN3l()

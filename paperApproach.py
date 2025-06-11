@@ -3,7 +3,6 @@ from pykeen.pipeline import pipeline
 import pykeen.datasets as ds
 import torch.nn as nn
 from csvEditor import csvEditor
-import numpy as np
 
 
 # Define the confidence score transformation using the sigmoid function
