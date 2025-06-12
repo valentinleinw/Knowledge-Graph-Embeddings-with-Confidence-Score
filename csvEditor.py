@@ -63,13 +63,13 @@ class csvEditor():
         data = []
         for i, (head, relation, tail) in enumerate(triples.tolist()):
             data.append([
-                head,  # Keep entity ID
-                relation,  # Keep relation ID
-                tail,  # Keep entity ID
-                float(confidence_scores[i])  # Confidence score
+                head,  
+                relation,  
+                tail,  
+                float(confidence_scores[i]) 
             ])
 
-        # Create DataFrame
+        
         df = pd.DataFrame(data, columns=["head", "relation", "tail", "confidence_score"])
         
         dataset_name = dataset.__class__.__name__
@@ -78,5 +78,5 @@ class csvEditor():
         
         os.makedirs(folder_path, exist_ok=True)
 
-        # Save to CSV
+        
         df.to_csv(file_path, index=False)
