@@ -89,37 +89,3 @@ def negative_sampling_similarity(triples, num_samples, top_similar, similarity_s
 
     return neg_quad
 
-def negative_sampling_graph(triples, num_samples):
-
-    neg_quad = []
-
-    # Build the graph from triples
-    graph = nx.Graph()
-    for head, relation, tail, _ in triples:
-        graph.add_edge(head, tail)
-
-    valid_entities = list(graph.nodes)  # Only use entities actually in the graph
-
-    for head, relation, tail, _ in triples:
-        for _ in range(num_samples):
-            if np.random.rand() > 0.5:
-                new_head = np.random.choice(valid_entities)
-                new_tail = tail
-            else:
-                new_head = head
-                new_tail = np.random.choice(valid_entities)
-
-            # Check if both nodes exist in the graph
-            if new_head in graph and new_tail in graph:
-                try:
-                    distance = nx.shortest_path_length(graph, source=new_head, target=new_tail)
-                    new_confidence = np.exp(-distance)
-                except nx.NetworkXNoPath:
-                    new_confidence = 0.0
-            else:
-                new_confidence = 0.0
-
-            neg_quad.append((new_head, relation, new_tail, new_confidence))
-
-    return neg_quad
-
