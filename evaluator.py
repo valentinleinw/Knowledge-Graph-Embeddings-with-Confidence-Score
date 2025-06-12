@@ -3,7 +3,7 @@ import numpy as np
 
 
 def evaluate(model, test_loader, device='cpu', top_k=10):
-    model.eval()  # Set model to evaluation mode
+    model.eval() 
 
     ranks = []
     hits_at_1 = 0
@@ -94,7 +94,7 @@ def evaluate_complex(model, test_loader, device='cpu', top_k=10):
                 (head_imag_exp * relation_real_exp * entity_im_embeddings) +
                 (head_real_exp * relation_imag_exp * entity_im_embeddings) -
                 (head_imag_exp * relation_imag_exp * entity_re_embeddings),
-                dim=2  # Sum over embedding_dim
+                dim=2 
             ) 
 
             # For each batch, calculate the rank of the correct tail entity
@@ -102,7 +102,6 @@ def evaluate_complex(model, test_loader, device='cpu', top_k=10):
                 rank = (torch.argsort(all_scores_re[i], descending=True) == tails[i]).nonzero(as_tuple=True)[0].item() + 1  # 1-based rank
                 ranks.append((rank, confidences[i]))
 
-                # Check for Hits@1 and Hits@5
                 hits_at_1 += (rank == 1)
                 hits_at_5 += (rank <= 5)
 
