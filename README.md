@@ -60,7 +60,7 @@ if __name__ == "__main__":
     current_datetime = datetime.now()
     date = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
-    train.train_and_evaluate("datasets/paper_bounded_UMLS.csv", ds.UMLS(), embedding_dim=50, batch_size=512, num_epochs=100, result_file=f"results/paper_bounded_UMLS_results/evaluation_results_{date}.csv")
+    train.train_and_evaluate("datasets/paper_bounded_UMLS.csv", ds.UMLS(), embedding_dim=50, batch_size=512, num_epochs=100, margin=1.0, result_file=f"results/paper_bounded_UMLS_results/evaluation_results_{date}.csv")
 
     time.sleep(1)
 
@@ -68,3 +68,5 @@ if __name__ == "__main__":
     date = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
     train.train_and_evaluate_neg_confidences_cosukg("datasets/UMLS_agree___with_confidence.csv", ds.UMLS(), result_file=f"results/UMLS_agree_with_confidence_results/evaluation_results_{date}.csv")
 ```
+
+The other functions' structure follows the same concept as seen in the examples above. 
