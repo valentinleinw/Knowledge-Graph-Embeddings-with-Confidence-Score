@@ -52,4 +52,19 @@ if __name__ == "__main__":
 
 ### Training and evaluating the models
 
-After the desired datasets have been created, one can start to train the models on them. The training function are separated by which loss function is being used and also which kind of negative sampling was used beforehand. By default, the parameters used for training and evaluating the models are set, but can be changed if needed. Additionally, the filepath of the needed dataset and the folder in which the results should be saved have to be specified in the functions parameters. 
+After the desired datasets have been created, one can start to train the models on them. The training function are separated by which loss function is being used and also which kind of negative sampling was used beforehand. By default, the parameters used for training and evaluating the models are set, but can be changed if needed. Additionally, the filepath of the needed dataset and the filepath of the result have to be specified in the functions parameters. For not overwriting already existing files, the current datetime should be created and added to the filepath as some sort of ID. The dataset on which the newly created dataset is based on, needs also to be included because the original models are being trained and evaluated as well for better and faster comparison of the results achieved by the new models. 
+
+```python
+if __name__ == "__main__":
+
+    current_datetime = datetime.now()
+    date = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
+
+    train.train_and_evaluate("datasets/paper_bounded_UMLS.csv", ds.UMLS(), embedding_dim=50, batch_size=512, num_epochs=100, result_file=f"results/paper_bounded_UMLS_results/evaluation_results_{date}.csv")
+
+    time.sleep(1)
+
+    current_datetime = datetime.now()
+    date = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
+    train.train_and_evaluate_neg_confidences_cosukg("datasets/UMLS_agree___with_confidence.csv", ds.UMLS(), result_file=f"results/UMLS_agree_with_confidence_results/evaluation_results_{date}.csv")
+```
