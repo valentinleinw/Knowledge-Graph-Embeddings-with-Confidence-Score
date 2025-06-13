@@ -22,13 +22,32 @@ The rest of the functions used for creating the datasets are located in the unce
 
 ```python
 if __name__ == "__main__":
-    uncertaintyComputer.add_confidence_score_randomly(dataset8)
 
-    uncertaintyComputer.add_confidence_score_randomly(dataset8, begin=0.5)
+    uncertaintyComputer.add_confidence_score_randomly(ds.WN18RR())
 
-    uncertaintyComputer.add_confidence_score_randomly(dataset8, end=0.5)
+    uncertaintyComputer.add_confidence_score_randomly(ds.WN18RR(), begin=0.5)
 
-    uncertaintyComputer.add_confidence_score_randomly(dataset8, begin=0.2, end=0.4)
+    uncertaintyComputer.add_confidence_score_randomly(ds.WN18RR(), end=0.5)
+
+    uncertaintyComputer.add_confidence_score_randomly(ds.WN18RR(), begin=0.2, end=0.4)
+```
+
+For all the other functions, the parameters used by the model need to be specified. These parameters include the embedding dimensions, batch size and number of epochs used by the model for the computation of the embeddings. 
+
+```python
+if __name__ == "__main__":
+
+    uncertaintyComputer.add_confidence_score_based_on_dataset_average(ds.WN18RR(), num_epochs=200, batch_size=2048, embedding_dim=500)
+```
+
+When using `add_confidence_score_based_on_model()` the model that should be used, as well as the model name has to be speicified(this is only for having a unique dataset name):
+
+```python
+if __name__ == "__main__":
+
+    uncertaintyComputer.add_confidence_score_based_on_model(ds.WN18RR(), ComplEx, "ComplEx", num_epochs=200, batch_size=2048, embedding_dim=500)
+
+    uncertaintyComputer.add_confidence_score_based_on_model(ds.WN18RR(), TransE, "TransE", num_epochs=200, batch_size=2048, embedding_dim=500)
 ```
 
 ### Training and evaluating the models
