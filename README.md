@@ -51,3 +51,5 @@ if __name__ == "__main__":
 ```
 
 ### Training and evaluating the models
+
+After the desired datasets have been created, one can start to train the models on them. The training function are separated by which loss function is being used and also which kind of negative sampling was used beforehand. By default, the parameters used for training and evaluating the models are set, but can be changed if needed. Additionally, the filepath of the needed dataset and the folder in which the results should be saved have to be specified in the functions parameters. 
