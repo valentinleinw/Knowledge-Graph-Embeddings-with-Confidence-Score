@@ -147,19 +147,8 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)
 
             print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
-            
-            if loss_function == "loss":
-                function_name = "train_and_evaluate"
-            elif loss_function == "objective":
-                function_name = "train_and_evaluate_objective_function"
-            elif loss_function == "softplus":
-                function_name = "train_and_evaluate_softplus"
-            elif loss_function == "gaussian":
-                function_name = "train_and_evaluate_gaussian"
-            elif loss_function == "contrastive":
-                function_name = "train_and_evaluate_contrastive"
-            elif loss_function == "divergence":
-                function_name = "train_and_evaluate_divergence"
+                
+            function_name = "train_and_evaluate" + "_" + loss_function
 
             csvEditor.write_results_to_csv(result_file, function_name, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10,
                                            file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
@@ -470,34 +459,7 @@ def evaluate_model_on_validation(model, val_loader):
     hits_at_5 /= num_batches
     
     return mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5
-
-def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
-    dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
-
-    # Combine train and val for k-fold cross-validation
-    train_val_data = train_data + val_data
-
-    full_train_loader = DataLoader(train_val_data, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
-
-    models = {
-        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-    }
-
-    optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
-
-    training_loop(
-        models, full_train_loader, val_loader=val_loader, test_loader=test_loader,
-        optimizers=optimizers, loss_function="loss",
-        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
-        embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file, folder=folder
-    )
-
-    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
-    
+ 
 def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
@@ -639,9 +601,10 @@ def helper_for_normal_models(model, function_name, dataset_name, name, num_epoch
     
     
     csvEditor.write_results_to_csv(result_file, function_name, name, "N/A", mrr, hits_at_1, hits_at_5, hits_at_10, dataset_name, losses_per_epoch[-1], num_epochs, embedding_dim, batch_size, "N/A")
-    
-def train_and_evaluate_objective_function(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
-    
+
+def train_and_evaluate(file_path, dataset_models, loss_function="loss", embedding_dim=50, batch_size=64, 
+                                num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
+                                patience = 5, delta=1e-4):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
     # Combine train and val for k-fold cross-validation
@@ -660,133 +623,10 @@ def train_and_evaluate_objective_function(file_path, dataset_models, embedding_d
 
     training_loop(
         models, full_train_loader, val_loader=val_loader, test_loader=test_loader,
-        optimizers=optimizers, loss_function="objective",
+        optimizers=optimizers, loss_function=loss_function,
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file, folder=folder
+        file_path=file_path, result_file=result_file, patience=patience, delta=delta
     )
 
-    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_objective_function", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
-            
-def train_and_evaluate_softplus(file_path, dataset_models, embedding_dim=50, batch_size=64, 
-                                num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
-                                patience = 5, delta=1e-4):
-    dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
-
-    # Combine train and val for k-fold cross-validation
-    train_val_data = train_data + val_data
-
-    train_loader = DataLoader(train_val_data, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
-
-    models = {
-        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-    }
-
-    optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
-    
-    training_loop(
-        models, train_loader, val_loader=val_loader, test_loader=test_loader,
-        optimizers=optimizers, loss_function="softplus",
-        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
-        embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file, folder=folder
-    )
-
-    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_softplus", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
-    
-
-def train_and_evaluate_gaussian(file_path, dataset_models, embedding_dim=50, batch_size=64, 
-                                num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
-                                patience = 5, delta=1e-4):
-    
-    dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
-
-    # Combine train and val for k-fold cross-validation
-    train_val_data = train_data + val_data
-
-    train_loader = DataLoader(train_val_data, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
-
-    models = {
-        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-    }
-
-    optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
-    
-    training_loop(
-        models, train_loader, val_loader=val_loader, test_loader=test_loader,
-        optimizers=optimizers, loss_function="gaussian",
-        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
-        embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file, folder=folder
-    )
-
-    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_gaussian", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
-    
-
-def train_and_evaluate_contrastive(file_path, dataset_models, embedding_dim=50, batch_size=64, 
-                                num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
-                                patience = 5, delta=1e-4):
-    
-    dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
-
-    # Combine train and val for k-fold cross-validation
-    train_val_data = train_data + val_data
-
-    train_loader = DataLoader(train_val_data, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
-
-    models = {
-        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-    }
-
-    optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
-    
-    training_loop(
-        models, train_loader, val_loader=val_loader, test_loader=test_loader,
-        optimizers=optimizers, loss_function="contrastive",
-        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
-        embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file, folder=folder
-    )
-
-    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_contrastive", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
-    
-
-def train_and_evaluate_divergence(file_path, dataset_models, embedding_dim=50, batch_size=64, 
-                                num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
-                                patience = 5, delta=1e-4):
-    
-    dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
-
-    # Combine train and val for k-fold cross-validation
-    train_val_data = train_data + val_data
-
-    train_loader = DataLoader(train_val_data, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
-
-    models = {
-        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
-    }
-
-    optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
-    
-    training_loop(
-        models, train_loader, val_loader=val_loader, test_loader=test_loader,
-        optimizers=optimizers, loss_function="divergence",
-        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
-        embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file, folder=folder
-    )
-
-    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_divergence", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
-    
+    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate" + "_" + loss_function, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
