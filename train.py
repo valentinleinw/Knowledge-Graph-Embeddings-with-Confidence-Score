@@ -60,7 +60,7 @@ def initialize(file_path, batch_size):
     return dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data
 
 def training_loop(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset,
-                  num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file, folder,
+                  num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
                   patience=5, delta=1e-4):
     # Training Loop with validation and early stopping
     for name, model in models.items():
@@ -161,7 +161,7 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
             elif loss_function == "divergence":
                 function_name = "train_and_evaluate_divergence"
 
-            csvEditor.write_results_to_csv(result_file, folder, function_name, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10,
+            csvEditor.write_results_to_csv(result_file, function_name, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10,
                                            file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
 
 def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset,
@@ -473,7 +473,7 @@ def evaluate_model_on_validation(model, val_loader):
     
     return mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5
 
-def train_and_evaluate(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
+def train_and_evaluate(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
     # Combine train and val for k-fold cross-validation
@@ -500,7 +500,7 @@ def train_and_evaluate(file_path, folder, dataset_models, embedding_dim=50, batc
 
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
-def train_and_evaluate_neg_confidences_cosukg(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
+def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
     # Combine train and val for k-fold cross-validation
@@ -529,7 +529,7 @@ def train_and_evaluate_neg_confidences_cosukg(file_path, folder, dataset_models,
     # Optionally evaluate non-uncertainty models
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_cosukg", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
 
-def train_and_evaluate_neg_confidences_inverse(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
+def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
     # Combine train and val for k-fold cross-validation
@@ -558,7 +558,7 @@ def train_and_evaluate_neg_confidences_inverse(file_path, folder, dataset_models
     # Optionally evaluate non-uncertainty models
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_inverse", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
 
-def train_and_evaluate_neg_confidences_similarity(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
+def train_and_evaluate_neg_confidences_similarity(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
     # Combine train and val for k-fold cross-validation
@@ -642,7 +642,7 @@ def helper_for_normal_models(model, function_name, dataset_name, name, num_epoch
     
     csvEditor.write_results_to_csv(result_file, function_name, name, "N/A", mrr, hits_at_1, hits_at_5, hits_at_10, dataset_name, losses_per_epoch[-1], num_epochs, embedding_dim, batch_size, "N/A")
     
-def train_and_evaluate_objective_function(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
+def train_and_evaluate_objective_function(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
 
@@ -670,7 +670,7 @@ def train_and_evaluate_objective_function(file_path, folder, dataset_models, emb
 
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_objective_function", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
             
-def train_and_evaluate_softplus(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, 
+def train_and_evaluate_softplus(file_path, dataset_models, embedding_dim=50, batch_size=64, 
                                 num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
                                 patience = 5, delta=1e-4):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
@@ -700,7 +700,7 @@ def train_and_evaluate_softplus(file_path, folder, dataset_models, embedding_dim
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_softplus", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
 
-def train_and_evaluate_gaussian(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, 
+def train_and_evaluate_gaussian(file_path, dataset_models, embedding_dim=50, batch_size=64, 
                                 num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
                                 patience = 5, delta=1e-4):
     
@@ -731,7 +731,7 @@ def train_and_evaluate_gaussian(file_path, folder, dataset_models, embedding_dim
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_gaussian", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
 
-def train_and_evaluate_contrastive(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, 
+def train_and_evaluate_contrastive(file_path, dataset_models, embedding_dim=50, batch_size=64, 
                                 num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
                                 patience = 5, delta=1e-4):
     
@@ -762,7 +762,7 @@ def train_and_evaluate_contrastive(file_path, folder, dataset_models, embedding_
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_contrastive", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
     
 
-def train_and_evaluate_divergence(file_path, folder, dataset_models, embedding_dim=50, batch_size=64, 
+def train_and_evaluate_divergence(file_path, dataset_models, embedding_dim=50, batch_size=64, 
                                 num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
                                 patience = 5, delta=1e-4):
     
