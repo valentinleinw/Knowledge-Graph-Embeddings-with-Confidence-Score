@@ -39,15 +39,10 @@ class TransEUncertainty(nn.Module):
         return total_loss
     
     def objective_function(self, pos_triples, neg_triples, confidence_scores):
-        """
-        Implements the objective function:
-            J = Sum( (f(l) - s_l)^2 ) for positive triples
-              + Sum( psi_gamma(f(l))^2 ) for negative triples
-        """
 
         # Compute the scores for positive and negative triples
-        pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
-        neg_scores = torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1)
+        pos_scores = torch.sigmoid(-torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1))
+        neg_scores = torch.sigmoid(-torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1))
 
         # First term: MSE loss for positive triples (f(l) - s_l)^2
         loss_pos = torch.mean(confidence_scores * (pos_scores - confidence_scores) ** 2)
@@ -157,8 +152,8 @@ class DistMultUncertainty(nn.Module):
 
     
     def objective_function(self, pos_triples, neg_triples, confidence_scores):
-        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
-        neg_scores = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
+        pos_scores = torch.sigmoid(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]))
+        neg_scores = torch.sigmoid(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]))
 
         
         loss_pos = torch.mean(confidence_scores * (pos_scores - confidence_scores) ** 2)
@@ -235,11 +230,14 @@ class ComplExUncertainty(nn.Module):
         return pos_loss.mean() + neg_loss.mean()
     
     def objective_function(self, pos_triples, neg_triples, confidence_scores):
-        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
-        neg_scores = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
+        pos_scores = torch.sigmoid(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]))
+        neg_scores = torch.sigmoid(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]))
 
+        # Loss on positive triples (weighted MSE)
         loss_pos = torch.mean(confidence_scores * (pos_scores - confidence_scores) ** 2)
-        loss_neg = torch.mean(F.relu(neg_scores) ** 2)
+
+        # Loss on negative triples (treat confidence = 0)
+        loss_neg = torch.mean((neg_scores - 0) ** 2)
 
         return loss_pos + loss_neg
     
