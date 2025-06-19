@@ -38,6 +38,8 @@ class TransEUncertainty(nn.Module):
         total_loss = pos_loss + neg_loss
         return total_loss
     
+    # replace relu with max(0,s_l−γ)^2
+    
     def objective_function(self, pos_triples, neg_triples, confidence_scores):
 
         # Compute the scores for positive and negative triples
@@ -47,8 +49,8 @@ class TransEUncertainty(nn.Module):
         # First term: MSE loss for positive triples (f(l) - s_l)^2
         loss_pos = torch.mean(confidence_scores * (pos_scores - confidence_scores) ** 2)
 
-        # Second term: Apply transformation psi_gamma for negative triples
-        loss_neg = torch.mean(F.relu(neg_scores) ** 2)  # psi_gamma(f(l))^2
+        margin = 0.5
+        loss_neg = torch.mean(F.relu(neg_scores - margin) ** 2)
 
         # Total objective function
         return loss_pos + loss_neg
@@ -157,7 +159,9 @@ class DistMultUncertainty(nn.Module):
 
         
         loss_pos = torch.mean(confidence_scores * (pos_scores - confidence_scores) ** 2)
-        loss_neg = torch.mean(F.relu(neg_scores) ** 2)
+        
+        margin = 0.5
+        loss_neg = torch.mean(F.relu(neg_scores - margin) ** 2)
 
         return loss_pos + loss_neg
     
@@ -236,8 +240,8 @@ class ComplExUncertainty(nn.Module):
         # Loss on positive triples (weighted MSE)
         loss_pos = torch.mean(confidence_scores * (pos_scores - confidence_scores) ** 2)
 
-        # Loss on negative triples (treat confidence = 0)
-        loss_neg = torch.mean((neg_scores - 0) ** 2)
+        margin = 0.5
+        loss_neg = torch.mean((neg_scores - margin) ** 2)
 
         return loss_pos + loss_neg
     
