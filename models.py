@@ -69,7 +69,7 @@ class TransEUncertainty(nn.Module):
         neg_scores = torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1)
         
         
-        loss_pos = torch.mean(F.softplus(pos_scores - confidence_scores))
+        loss_pos = torch.mean(confidence_scores * F.softplus(pos_scores))
         loss_neg = torch.mean(F.softplus(-neg_scores))
         return loss_pos + loss_neg
     
@@ -171,7 +171,7 @@ class DistMultUncertainty(nn.Module):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         neg_scores = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
 
-        pos_loss = -torch.mean(confidence_scores * F.softplus(pos_scores))
+        pos_loss = torch.mean(confidence_scores * F.softplus(pos_scores))
         neg_loss = torch.mean(F.softplus(neg_scores))
 
         return pos_loss + neg_loss
