@@ -47,7 +47,7 @@ class TransEUncertainty(nn.Module):
         neg_scores = torch.sigmoid(-torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1))
 
         # First term: MSE loss for positive triples (f(l) - s_l)^2
-        loss_pos = torch.mean(confidence_scores * (pos_scores - confidence_scores) ** 2)
+        loss_pos = torch.mean((pos_scores - confidence_scores) ** 2)
 
         margin = 0.5
         loss_neg = torch.mean(F.relu(neg_scores - margin) ** 2)
@@ -158,7 +158,7 @@ class DistMultUncertainty(nn.Module):
         neg_scores = torch.sigmoid(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]))
 
         
-        loss_pos = torch.mean(confidence_scores * (pos_scores - confidence_scores) ** 2)
+        loss_pos = torch.mean((pos_scores - confidence_scores) ** 2)
         
         margin = 0.5
         loss_neg = torch.mean(F.relu(neg_scores - margin) ** 2)
@@ -238,7 +238,7 @@ class ComplExUncertainty(nn.Module):
         neg_scores = torch.sigmoid(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]))
 
         # Loss on positive triples (weighted MSE)
-        loss_pos = torch.mean(confidence_scores * (pos_scores - confidence_scores) ** 2)
+        loss_pos = torch.mean((pos_scores - confidence_scores) ** 2)
 
         margin = 0.5
         loss_neg = torch.mean((neg_scores - margin) ** 2)
