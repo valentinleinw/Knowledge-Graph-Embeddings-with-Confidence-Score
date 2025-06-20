@@ -56,14 +56,6 @@ class TransEUncertainty(nn.Module):
         return loss_pos + loss_neg
     
     def softplus_loss(self, pos_triples, neg_triples, confidence_scores):
-        """
-         Calculates the loss as:
-         L = 𝔼_pos[ log(1 + exp(||f(h, r, t)||₁ − c)) ] + 𝔼_neg[ log(1 + exp(−||f(h, r, t)||₁)) ]
-         where:
-           - f(h, r, t) is the embedding-based scoring function (typically vector difference)
-           - ||·||₁ is the L1 norm (sum of absolute values)
-           - c is the confidence score for each positive triple
-        """
         
         pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
         neg_scores = torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1)
@@ -75,18 +67,9 @@ class TransEUncertainty(nn.Module):
     
     def gaussian_nll_loss(self, pos_triples, confidence_scores):
         
-        """
-        Calculates the Gaussian negative log-likelihood loss:
-        L = 𝔼_pos[ (||f(h, r, t)||₁ − c)² / (2σ²) + log(σ²) ]
-        where:
-        - f(h, r, t) is the model's score for the triple (typically a distance in embedding space)
-        - c is the confidence score (treated as the target mean)
-        - σ² = 1 / c (inverse-confidence acts as variance estimate)
-        """
-        
         pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
         sigma_sq = 1 / (confidence_scores + 1e-8)  # Prevent division by zero
-        loss = torch.mean((pos_scores - confidence_scores) ** 2 / (2 * sigma_sq) + torch.log(sigma_sq))
+        loss = torch.mean(0.5 * (pos_scores - confidence_scores) ** 2 / (2 * sigma_sq) + torch.log(sigma_sq))
         return loss
     
     def contrastive_loss(self, pos_triples, neg_triples, margin=1.0):
@@ -260,7 +243,7 @@ class ComplExUncertainty(nn.Module):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
 
         variance = confidence_scores  # Assume confidence scores represent variance
-        loss = (pos_scores - confidence_scores) ** 2 / (2 * variance) + torch.log(variance + 1e-8)
+        loss = 0.5 ((pos_scores - confidence_scores) ** 2 / (2 * variance) + torch.log(variance + 1e-8))
 
         return loss.mean()
     
