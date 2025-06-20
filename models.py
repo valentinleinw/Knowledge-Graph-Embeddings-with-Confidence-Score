@@ -171,8 +171,8 @@ class DistMultUncertainty(nn.Module):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         neg_scores = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
 
-        pos_loss = torch.mean(confidence_scores * F.softplus(pos_scores))
-        neg_loss = torch.mean(F.softplus(neg_scores))
+        pos_loss = -confidence_scores * F.logsigmoid(pos_scores)
+        neg_loss = -F.logsigmoid(-neg_scores)
 
         return pos_loss + neg_loss
 
