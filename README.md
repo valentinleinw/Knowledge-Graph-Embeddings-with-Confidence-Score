@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
 ### Training and evaluating the models
 
-After the desired datasets have been created, one can start to train the models on them. The training function are separated by which loss function is being used and also which kind of negative sampling was used beforehand. By default, the parameters used for training and evaluating the models are set, but can be changed if needed. Additionally, the filepath of the needed dataset and the filepath of the result have to be specified in the functions parameters. For not overwriting already existing files, the current datetime should be created and added to the filepath as some sort of ID. The dataset on which the newly created dataset is based on, needs also to be included because the original models are being trained and evaluated as well for better and faster comparison of the results achieved by the new models. 
+After the desired datasets have been created, one can start to train the models on them. The training function are separated by which kind of negative sampling was used beforehand. In the `train_and_evaluate()` function, the desired loss function needs to be speficied via a String. The different loss functions are called: "loss", "objective", "softplus", "contrastive", "gaussian", and "divergence". For further information on how each loss function works, you can look into the models.py file. This method uses normal negative sampling, as used in the standard KGE models. If you desire to change the sampling method, you can call the `train_and_evaluate_neg_confidences_cosukg`, `train_and_evaluate_neg_confidences_inverse`, or `train_and_evaluate_neg_confidences_similarity` function. These functions use the adjusted "loss" loss function. By default, the parameters used for training and evaluating the models are set, but can be changed if needed. Additionally, the filepath of the needed dataset and the filepath of the result have to be specified in the functions parameters. For not overwriting already existing files, the current datetime should be created and added to the filepath as some sort of ID. The dataset on which the newly created dataset is based on, needs also to be included because the original models are being trained and evaluated as well for better and faster comparison of the results achieved by the new models. 
 
 ```python
 if __name__ == "__main__":
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     current_datetime = datetime.now()
     date = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
-    train.train_and_evaluate("datasets/paper_bounded_UMLS.csv", ds.UMLS(), embedding_dim=50, batch_size=512, num_epochs=100, margin=1.0, result_file=f"results/paper_bounded_UMLS_results/evaluation_results_{date}.csv")
+    train.train_and_evaluate("datasets/paper_bounded_UMLS.csv", ds.UMLS(), "loss", embedding_dim=50, batch_size=512, num_epochs=100, margin=1.0, result_file=f"results/paper_bounded_UMLS_results/evaluation_results_{date}.csv")
 
     time.sleep(1)
 
