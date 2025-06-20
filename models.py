@@ -162,7 +162,7 @@ class DistMultUncertainty(nn.Module):
     def gaussian_nll_loss(self, pos_triples, confidence_scores):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         
-        variance = confidence_scores + 1e-6  # Prevent division by zero
+        variance = confidence_scores + 1e-8  # Prevent division by zero
         
         return torch.mean(0.5 * torch.log(variance) + 0.5 * ((pos_scores - confidence_scores) ** 2) / variance)
 
@@ -243,7 +243,7 @@ class ComplExUncertainty(nn.Module):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
 
         variance = confidence_scores  # Assume confidence scores represent variance
-        loss = 0.5 ((pos_scores - confidence_scores) ** 2 / (2 * variance) + torch.log(variance + 1e-8))
+        loss = 0.5 ((pos_scores - confidence_scores) ** 2 / (2 * variance + 1e-8) + torch.log(variance + 1e-8))
 
         return loss.mean()
     
