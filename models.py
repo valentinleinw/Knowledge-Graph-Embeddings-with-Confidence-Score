@@ -67,8 +67,10 @@ class TransEUncertainty(nn.Module):
         
         pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
         neg_scores = torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1)
-        loss_pos = torch.mean(torch.log(1 + torch.exp(pos_scores - confidence_scores)))
-        loss_neg = torch.mean(torch.log(1 + torch.exp(-neg_scores)))
+        
+        
+        loss_pos = torch.mean(F.softplus(pos_scores - confidence_scores))
+        loss_neg = torch.mean(F.softplus(-neg_scores))
         return loss_pos + loss_neg
     
     def gaussian_nll_loss(self, pos_triples, confidence_scores):
