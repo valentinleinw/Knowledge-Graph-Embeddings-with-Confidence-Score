@@ -76,7 +76,7 @@ class TransEUncertainty(nn.Module):
         
         pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
         neg_scores = torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1)
-        loss = torch.mean(F.relu(pos_scores - neg_scores + margin))
+        loss = torch.mean(F.relu(margin - pos_scores + neg_scores))
         return loss
     
     def kl_divergence_loss(self, pos_triples, confidence_scores):
