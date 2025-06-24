@@ -80,21 +80,11 @@ class TransEUncertainty(nn.Module):
         return loss
     
     def kl_divergence_loss(self, pos_triples, confidence_scores):
-        """
-        Calculates the Kullback–Leibler (KL) divergence between predicted and target probability distributions:
-        L = D_KL(P || Q) = Σ_i P(i) · log(P(i) / Q(i))
-        where:
-        - P = softmax(−confidence_scores) is the target distribution (based on confidence)
-        - Q = softmax(−||f(h, r, t)||₁) is the model's predicted distribution over scores
-        - f(h, r, t) is the scoring function (lower = better)
-        """
-
         
         pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
         pos_probs = F.softmax(-pos_scores, dim=0)
         target_probs = F.softmax(-confidence_scores, dim=0)
-        loss = F.kl_div(pos_probs.log(), target_probs, reduction='batchmean')
-        return loss
+        return F.kl_div(pos_probs.log(), target_probs, reduction='batchmean')
    
 class DistMultUncertainty(nn.Module):
     def __init__(self, num_entities, num_relations, embedding_dim):
@@ -127,8 +117,7 @@ class DistMultUncertainty(nn.Module):
         neg_loss = torch.sum(neg_confidence_scores * torch.clamp(margin + pos_scores - neg_scores, min=0))
 
         return pos_loss + neg_loss
-
-    
+  
     def objective_function(self, pos_triples, neg_triples, confidence_scores):
         pos_scores = torch.sigmoid(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]))
         neg_scores = torch.sigmoid(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]))
