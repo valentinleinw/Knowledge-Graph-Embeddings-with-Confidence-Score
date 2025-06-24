@@ -66,22 +66,13 @@ class TransEUncertainty(nn.Module):
         return loss_pos + loss_neg
     
     def gaussian_nll_loss(self, pos_triples, confidence_scores):
-        
+
         pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
-        sigma_sq = 1 / (confidence_scores + 1e-8)  # Prevent division by zero
-        loss = torch.mean(0.5 * (pos_scores - confidence_scores) ** 2 / (2 * sigma_sq) + torch.log(sigma_sq))
+        loss = torch.mean(0.5 *  torch.log(confidence_scores + 1e-8) + (pos_scores - confidence_scores) ** 2 / (2 * confidence_scores + 1e-8))
         return loss
+        
     
     def contrastive_loss(self, pos_triples, neg_triples, margin=1.0):
-        
-        """
-        Calculates the margin-based contrastive loss:
-        L = 𝔼[ max(0, ||f(h⁺, r, t⁺)||₁ − ||f(h⁻, r, t⁻)||₁ + γ) ]
-        where:
-        - f(h, r, t) is the scoring function (typically distance in embedding space)
-        - γ is the margin hyperparameter (default 1.0)
-        - h⁺, r, t⁺ are from positive triples; h⁻, r, t⁻ are from negative triples
-        """
         
         pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
         neg_scores = torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1)
@@ -160,11 +151,10 @@ class DistMultUncertainty(nn.Module):
         return pos_loss + neg_loss
 
     def gaussian_nll_loss(self, pos_triples, confidence_scores):
+        
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
-        
-        variance = confidence_scores + 1e-8  # Prevent division by zero
-        
-        return torch.mean(0.5 * torch.log(variance) + 0.5 * ((pos_scores - confidence_scores) ** 2) / variance)
+                
+        return torch.mean(0.5 * torch.log(confidence_scores + 1e-8) +((pos_scores - confidence_scores) ** 2) / (2 * confidence_scores + 1e-8))
 
     def contrastive_loss(self, pos_triples, neg_triples, margin=1.0):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
@@ -242,8 +232,7 @@ class ComplExUncertainty(nn.Module):
     def gaussian_nll_loss(self, pos_triples, confidence_scores):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
 
-        variance = confidence_scores  # Assume confidence scores represent variance
-        loss = 0.5 ((pos_scores - confidence_scores) ** 2 / (2 * variance + 1e-8) + torch.log(variance + 1e-8))
+        loss = 0.5 * ((pos_scores - confidence_scores) ** 2 / (2 * confidence_scores + 1e-8) + torch.log(confidence_scores + 1e-8))
 
         return loss.mean()
     
