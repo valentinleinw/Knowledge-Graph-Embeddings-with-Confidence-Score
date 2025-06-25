@@ -100,7 +100,7 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
                 elif loss_function == "gaussian":
                     loss = model.gaussian_nll_loss(pos_triples, confidences)
                 elif loss_function == "contrastive":
-                    loss = model.contrastive_loss(pos_triples, neg_triples, margin)
+                    loss = model.contrastive_loss(pos_triples, neg_triples, margin, confidences)
                 elif loss_function == "divergence":
                     loss = model.kl_divergence_loss(pos_triples, confidences)
                 loss.backward()
