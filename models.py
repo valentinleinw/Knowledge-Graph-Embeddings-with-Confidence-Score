@@ -132,8 +132,8 @@ class DistMultUncertainty(nn.Module):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         neg_scores = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
 
-        pos_loss = -confidence_scores * F.logsigmoid(pos_scores)
-        neg_loss = -F.logsigmoid(-neg_scores)
+        pos_loss = torch.mean(-confidence_scores * F.logsigmoid(pos_scores))
+        neg_loss = torch.mean(-F.logsigmoid(-neg_scores))
 
         return pos_loss + neg_loss
 
@@ -211,10 +211,10 @@ class ComplExUncertainty(nn.Module):
         pos_score = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         neg_score = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
 
-        pos_loss = -confidence_scores * F.logsigmoid(pos_score + 1e-8)
-        neg_loss = -F.logsigmoid(-neg_score - 1e-8)
+        pos_loss = torch.mean(-confidence_scores * F.logsigmoid(pos_score + 1e-8))
+        neg_loss = torch.mean(-F.logsigmoid(-neg_score - 1e-8))
 
-        return (pos_loss + neg_loss).mean()
+        return pos_loss + neg_loss
     
     def gaussian_nll_loss(self, pos_triples, confidence_scores):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
