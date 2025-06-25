@@ -483,7 +483,7 @@ def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embeddi
         optimizers=optimizers, loss_function="loss",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file, folder=folder
+        file_path=file_path, result_file=result_file
     )
 
     # Optionally evaluate non-uncertainty models
@@ -512,7 +512,7 @@ def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedd
         optimizers=optimizers, loss_function="loss",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file, folder=folder
+        file_path=file_path, result_file=result_file
     )
 
     # Optionally evaluate non-uncertainty models
@@ -541,7 +541,7 @@ def train_and_evaluate_neg_confidences_similarity(file_path, dataset_models, emb
         optimizers=optimizers, loss_function="loss",
         dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
-        file_path=file_path, result_file=result_file, folder=folder
+        file_path=file_path, result_file=result_file
     )
 
     # Optionally evaluate non-uncertainty models
