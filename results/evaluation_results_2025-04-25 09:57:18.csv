@@ -1,0 +1,2 @@
+Model,Dataset,Epochs,Embedding Dims,Batch Size,Margin,Loss,Mean Rank,MRR,Hits@1,Hits@5,Hits@10
+TransEUncertainty,datasets/paper_bounded_UMLS.csv,5,6,16,1.0,219.50342541206174,54.30628,0.051070467,0.010719754977029096,0.04747320061255743,0.09494640122511486
