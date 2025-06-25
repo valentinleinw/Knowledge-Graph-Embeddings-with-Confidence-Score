@@ -1,6 +1,0 @@
-Model,Dataset,Function,Epochs,Embedding Dims,Batch Size,Margin,Loss,Mean Rank,MRR,Hits@1,Hits@5,Hits@10
-softplus,datasets/paper_logistic_UMLS.csv,train_transE_with_different_losses,10,4,16,1.0,29.866154743122667,41.9464,0.07585768,0.013782542113323124,0.09494640122511486,0.17151607963246554
-gaussian,datasets/paper_logistic_UMLS.csv,train_transE_with_different_losses,10,4,16,1.0,5.889388108647174,36.611027,0.07931103,0.02450229709035222,0.07656967840735068,0.1332312404287902
-contrastive,datasets/paper_logistic_UMLS.csv,train_transE_with_different_losses,10,4,16,1.0,4.637476927398588,18.485453,0.15386105,0.04134762633996937,0.21439509954058192,0.4058192955589586
-divergence,datasets/paper_logistic_UMLS.csv,train_transE_with_different_losses,10,4,16,1.0,0.06548086384797766,18.76723,0.15931974,0.05206738131699847,0.20673813169984687,0.39663093415007655
-objective_function,datasets/paper_logistic_UMLS.csv,train_transE_with_different_losses,10,4,16,1.0,4.5767508679532,95.604904,0.021349823,0.0,0.021439509954058193,0.033690658499234305

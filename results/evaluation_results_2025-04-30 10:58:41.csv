@@ -1,5 +1,0 @@
-Model,Dataset,Function,Epochs,Embedding Dims,Batch Size,Margin,Loss,Mean Rank,MRR,Hits@1,Hits@5,Hits@10
-TransEUncertainty,datasets/paper_bounded_UMLS.csv,train_and_evaluate_neg_confidences_cosukg,10,4,16,1.0,157.52937766780025,45.081165,0.06707002,0.013782542113323124,0.07963246554364471,0.14088820826952528
-DistMultUncertainty,datasets/paper_bounded_UMLS.csv,train_and_evaluate_neg_confidences_cosukg,10,4,16,1.0,184.7774108078169,66.79479,0.03834386,0.006125574272588055,0.030627871362940276,0.07350689127105667
-ComplExUncertainty,datasets/paper_bounded_UMLS.csv,train_and_evaluate_neg_confidences_cosukg,10,4,16,1.0,1.6392012622369372,69.65237366003063,0.037122433997992886,0.004594180704441042,0.03215926493108729,0.07044410413476264
-RotatEUncertainty,datasets/paper_bounded_UMLS.csv,train_and_evaluate_neg_confidences_cosukg,10,4,16,1.0,0.6865767346614081,38.0980110168457,0.07789529114961624,0.019908116385911178,0.08116385911179173,0.15773354470729828

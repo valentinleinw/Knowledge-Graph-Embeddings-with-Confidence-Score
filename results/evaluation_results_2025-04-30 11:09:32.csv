@@ -1,4 +1,0 @@
-Model,Dataset,Function,Epochs,Embedding Dims,Batch Size,Margin,Loss,Mean Rank,MRR,Hits@1,Hits@5,Hits@10
-TransEUncertainty,datasets/paper_bounded_UMLS.csv,train_and_evaluate_objective_function,10,4,16,1.0,2.9983618353372035,50.11945,0.058468536,0.009188361408882083,0.06125574272588055,0.11638591117917305
-DistMultUncertainty,datasets/paper_bounded_UMLS.csv,train_and_evaluate_objective_function,10,4,16,1.0,1.3112848528620342,68.57427,0.036977254,0.006125574272588055,0.030627871362940276,0.06278713629402756
-ComplExUncertainty,datasets/paper_bounded_UMLS.csv,train_and_evaluate_objective_function,10,4,16,1.0,4.08685032715616,65.68606431852986,0.03656914504456415,0.0030627871362940277,0.026033690658499236,0.07044410413476264

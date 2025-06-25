@@ -1,7 +1,0 @@
-Model,Dataset,Function,Epochs,Embedding Dims,Batch Size,Margin,Loss,Mean Rank,MRR,Hits@1,Hits@5,Hits@10
-TransEUncertainty,datasets/UMLS_random_[0;0.5]__with_confidence.csv,train_and_evaluate_neg_confidences_cosukg,1,50,16,1.0,308.9416640323141,61.137825,0.040896032,0.0,0.039816232771822356,0.08575803981623277
-DistMultUncertainty,datasets/UMLS_random_[0;0.5]__with_confidence.csv,train_and_evaluate_neg_confidences_cosukg,1,50,16,1.0,343.84845696324885,66.9709,0.030739088,0.0,0.018376722817764167,0.05053598774885146
-ComplExUncertainty,datasets/UMLS_random_[0;0.5]__with_confidence.csv,train_and_evaluate_neg_confidences_cosukg,1,50,16,1.0,3.881688477228517,67.53445635528331,0.037052619973250094,0.004594180704441042,0.030627871362940276,0.06891271056661562
-TransE,UMLS,train_and_evaluate_neg_confidences_cosukg,1,50,16,N/A,1.0825167016749002,N/A,0.04216180741786957,0.0,0.047655068078668684,0.09984871406959153
-DistMult,UMLS,train_and_evaluate_neg_confidences_cosukg,1,50,16,N/A,1.0243533454789706,N/A,0.04978933185338974,0.012102874432677761,0.05219364599092285,0.09606656580937972
-ComplEx,UMLS,train_and_evaluate_neg_confidences_cosukg,1,50,16,N/A,5.59477813953271,N/A,0.0424095056951046,0.007564296520423601,0.037821482602118005,0.08396369137670197
