@@ -437,35 +437,53 @@ dataset5 = ds.DBpedia50()
 dataset6 = ds.Kinships()
 dataset7 = ds.CoDExMedium()
 dataset8 = ds.WN18RR()
+dataset9 = ds.CoDExLarge()
+dataset10 = ds.YAGO310()
 
-add_confidence_score_randomly(dataset8)
+add_confidence_score_randomly(dataset9)
 
-add_confidence_score_randomly(dataset8, begin=0.5)
+add_confidence_score_randomly(dataset9, begin=0.5)
 
-add_confidence_score_randomly(dataset8, end=0.5)
+add_confidence_score_randomly(dataset9, end=0.5)
 
-add_confidence_score_based_on_model(dataset8, TransE, "TransE", 200, 2048, 500)
+add_confidence_score_based_on_model(dataset9, TransE, "TransE", 200, 2048, 500)
 
-add_confidence_score_based_on_model(dataset8, DistMult, "DistMult", 200, 2048, 500)
+add_confidence_score_based_on_model(dataset9, DistMult, "DistMult", 200, 2048, 500)
 
-add_confidence_score_based_on_model(dataset8, ComplEx, "ComplEx", 200, 2048, 500)
+add_confidence_score_based_on_model(dataset9, ComplEx, "ComplEx", 200, 2048, 500)
 
-add_confidence_score_based_on_dataset_average(dataset8, 200, 2048, 500)
+add_confidence_score_based_on_dataset_average(dataset9, 200, 2048, 500)
 
-add_confidence_score_based_on_dataset_agreement(dataset8, 200, 2048, 500)
+add_confidence_score_based_on_dataset_agreement(dataset9, 200, 2048, 500)
 
-add_confidence_score_based_on_appearances(dataset8)
+add_confidence_score_based_on_appearances(dataset9)
 
-add_confidence_score_based_on_appearances_ranked(dataset8)
+add_confidence_score_based_on_appearances_ranked(dataset9)
 
-add_confidence_score_logical_rules(dataset8, 200, 2048, 500)
+add_confidence_score_logical_rules(dataset9, 200, 2048, 500)
 
-add_confidence_score_logical_rules(dataset7, 200, 2048, 500)
+add_confidence_score_logical_rules_with_distmult(dataset9, 200, 2048, 500)
 
-add_confidence_score_logical_rules_with_distmult(dataset7, 200, 2048, 500)
+add_confidence_score_randomly(dataset10)
 
-add_confidence_score_logical_rules_with_distmult(dataset8, 200, 2048, 500)
+add_confidence_score_randomly(dataset10, begin=0.5)
 
-add_confidence_score_logical_rules_with_distmult(dataset, 200, 2048, 500)
+add_confidence_score_randomly(dataset10, end=0.5)
 
-add_confidence_score_logical_rules_with_distmult(dataset4, 200, 2048, 500)
+add_confidence_score_based_on_model(dataset10, TransE, "TransE", 200, 2048, 500)
+
+add_confidence_score_based_on_model(dataset10, DistMult, "DistMult", 200, 2048, 500)
+
+add_confidence_score_based_on_model(dataset10, ComplEx, "ComplEx", 200, 2048, 500)
+
+add_confidence_score_based_on_dataset_average(dataset10, 200, 2048, 500)
+
+add_confidence_score_based_on_dataset_agreement(dataset10, 200, 2048, 500)
+
+add_confidence_score_based_on_appearances(dataset10)
+
+add_confidence_score_based_on_appearances_ranked(dataset10)
+
+add_confidence_score_logical_rules(dataset10, 200, 2048, 500)
+
+add_confidence_score_logical_rules_with_distmult(dataset10, 200, 2048, 500)
