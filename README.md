@@ -18,7 +18,7 @@ if __name__ == "__main__":
     paperApproach.bounded_rectifier(ds.WN18RR())
 ```
 
-The rest of the functions used for creating the datasets are located in the uncertaintyComputer.py file. Depedning on the required function, multiple parameters can be changed dynamically. For `add_confidence_score_based_on_appearances()` and `add_confidence_score_based_on_appearances_ranked()` only the datasets have to be specified, as already seen in the code snippet above. For `add_confidence_score_randomly()` the default range is defined as [0,1], but by specifying the start and/or the end, the range can be altered.
+The rest of the functions used for creating the datasets are located in the uncertaintyComputer.py file. Depending on the required function, multiple parameters can be changed dynamically. For `add_confidence_score_based_on_appearances()` and `add_confidence_score_based_on_appearances_ranked()` only the datasets have to be specified, as already seen in the code snippet above. For `add_confidence_score_randomly()` the default range is defined as [0,1], but by specifying the start and/or the end, the range can be altered.
 
 ```python
 if __name__ == "__main__":
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     uncertaintyComputer.add_confidence_score_randomly(ds.WN18RR(), begin=0.2, end=0.4)
 ```
 
-For all the other functions, the parameters used by the model need to be specified. These parameters include the embedding dimensions, batch size and number of epochs used by the model for the computation of the embeddings. 
+For all the other functions, the parameters used by the model need to be specified. These parameters include the embedding dimensions, batch size, and number of epochs used by the model for the computation of the embeddings. 
 
 ```python
 if __name__ == "__main__":
@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
 ### Training and evaluating the models
 
-After the desired datasets have been created, one can start to train the models on them. The training function are separated by which kind of negative sampling was used beforehand. In the `train_and_evaluate()` function, the desired loss function needs to be speficied via a String. The different loss functions are called: "loss", "objective", "softplus", "contrastive", "gaussian", and "divergence". For further information on how each loss function works, you can look into the models.py file. This method uses normal negative sampling, as used in the standard KGE models. If you desire to change the sampling method, you can call the `train_and_evaluate_neg_confidences_cosukg`, `train_and_evaluate_neg_confidences_inverse`, or `train_and_evaluate_neg_confidences_similarity` function. These functions use the adjusted "loss" loss function. By default, the parameters used for training and evaluating the models are set, but can be changed if needed. Additionally, the filepath of the needed dataset and the filepath of the result have to be specified in the functions parameters. For not overwriting already existing files, the current datetime should be created and added to the filepath as some sort of ID. The dataset on which the newly created dataset is based on, needs also to be included because the original models are being trained and evaluated as well for better and faster comparison of the results achieved by the new models. 
+After the desired datasets have been created, one can start to train the models on them. The training function are separated by which kind of negative sampling was used beforehand. In the `train_and_evaluate()` function, the desired loss function needs to be specified via a String. The different loss functions are called: "loss", "objective", "softplus", "contrastive", "gaussian", and "divergence". For further information on how each loss function works, you can look into the models.py file. This method uses normal negative sampling, as used in the standard KGE models. If you desire to change the sampling method, you can call the `train_and_evaluate_neg_confidences_cosukg`, `train_and_evaluate_neg_confidences_inverse`, or `train_and_evaluate_neg_confidences_similarity` function. These functions use the adjusted "loss" loss function. By default, the parameters used for training and evaluating the models are set, but can be changed if needed. Additionally, the filepath of the needed dataset and the filepath of the result have to be specified in the functions parameters. For not overwriting already existing files, the current datetime should be created and added to the filepath as some sort of ID. The dataset on which the newly created dataset is based on, needs also to be included because the original models are being trained and evaluated as well for better and faster comparison of the results achieved by the new models. 
 
 ```python
 if __name__ == "__main__":
