@@ -11,7 +11,7 @@ class TransEUncertainty(nn.Module):
     
     # normal TransE scoring function
     def forward(self, h, r, t):
-        return self.entity_embeddings(h) + self.relation_embeddings(r) - self.entity_embeddings(t)
+        return torch.norm(self.entity_embeddings(h) + self.relation_embeddings(r) - self.entity_embeddings(t), p=1, dim=1)
     
     # TransE scoring function changed to Loss Function by using confidence scores
     def loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):

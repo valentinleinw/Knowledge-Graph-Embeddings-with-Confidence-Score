@@ -72,8 +72,6 @@ if __name__ == "__main__":
         
         train.train_and_evaluate(origin, dataset, "objective", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_objective.csv")
 
-        train.train_and_evaluate(origin, dataset, "contrastive", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_contrastive.csv")
-
         train.train_and_evaluate(origin, dataset, "divergence", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_divergence.csv")
 
         train.train_and_evaluate(origin, dataset, "gaussian", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_gaussian.csv")
