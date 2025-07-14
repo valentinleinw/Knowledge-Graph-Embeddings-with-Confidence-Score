@@ -16,16 +16,16 @@ class TransEUncertainty(nn.Module):
     # TransE scoring function changed to Loss Function by using confidence scores
     def loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
         pos_loss = torch.sum(confidence_scores * torch.clamp(
-            margin + torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1) -
-            torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1), min=0))
+            margin + self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]) -
+            self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), min=0))
         return pos_loss
     
     
     def loss_neg(self, pos_triples, neg_triples, pos_confidence_scores, neg_confidence_scores, margin=1.0):
 
         # Compute positive and negative scores
-        pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
-        neg_scores = torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1)
+        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+        neg_scores = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
         
         num_neg_samples = len(neg_scores) // len(pos_scores)  # Get ratio of neg to pos
         pos_scores = pos_scores.repeat_interleave(num_neg_samples)  # Expand to match neg_scores
@@ -41,8 +41,8 @@ class TransEUncertainty(nn.Module):
     def objective_function(self, pos_triples, neg_triples, confidence_scores):
 
         # Compute the scores for positive and negative triples
-        pos_scores = torch.sigmoid(-torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1))
-        neg_scores = torch.sigmoid(-torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1))
+        pos_scores = torch.sigmoid(-self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]))
+        neg_scores = torch.sigmoid(-self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]))
 
         # First term: MSE loss for positive triples (f(l) - s_l)^2
         loss_pos = torch.mean((pos_scores - confidence_scores) ** 2)
@@ -55,8 +55,8 @@ class TransEUncertainty(nn.Module):
     
     def softplus_loss(self, pos_triples, neg_triples, confidence_scores):
         
-        pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
-        neg_scores = torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1)
+        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+        neg_scores = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
         
         
         loss_pos = torch.mean(confidence_scores * F.softplus(pos_scores))
@@ -65,7 +65,7 @@ class TransEUncertainty(nn.Module):
     
     def gaussian_nll_loss(self, pos_triples, confidence_scores):
 
-        pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
+        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         loss = torch.mean(0.5 *  torch.log(confidence_scores + 1e-8) + (pos_scores - confidence_scores) ** 2 / (2 * confidence_scores + 1e-8))
         return loss
         
@@ -79,7 +79,7 @@ class TransEUncertainty(nn.Module):
     
     def kl_divergence_loss(self, pos_triples, confidence_scores):
         
-        pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
+        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         pos_probs = F.softmax(-pos_scores, dim=0)
         target_probs = F.softmax(-confidence_scores, dim=0)
         return F.kl_div(pos_probs.log(), target_probs, reduction='batchmean')
