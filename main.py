@@ -1,7 +1,5 @@
 import train
-from datetime import datetime
 import pykeen.datasets as ds
-import time
 import pandas as pd
 
 if __name__ == "__main__":

@@ -59,7 +59,7 @@ def initialize(file_path, batch_size):
     
     return dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data
 
-def training_loop(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset,
+def training_loop(models, train_loader, val_loader, test_loader, optimizers, loss_function,
                   num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
                   patience=10, delta=1e-4):
     # Training Loop with validation and early stopping
@@ -153,7 +153,7 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
             csvEditor.write_results_to_csv(result_file, function_name, name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10,
                                            file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
 
-def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset,
+def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_loader, optimizers,
                                         num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
                   patience=10, delta=1e-4):
     for name, model in models.items():
@@ -240,7 +240,7 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
             csvEditor.write_results_to_csv(result_file, "train_and_evaluate_neg_confidences_cosukg", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
 
 def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test_loader, optimizers,
-                                        loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
+                                        num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
                                         patience=10, delta=1e-4):
     for name, model in models.items():
         print(f"\nTraining {name}...")
@@ -326,7 +326,7 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
             csvEditor.write_results_to_csv(result_file, "train_and_evaluate_neg_confidences_inverse", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
 
 def training_loop_neg_confidences_similarity(models, train_loader, val_loader, test_loader, optimizers, 
-                                            loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
+                                            num_epochs, embedding_dim, batch_size, margin, file_path, result_file,
                                             patience=10, delta=1e-4):
     for name, model in models.items():
         print(f"\nTraining {name}...")
@@ -458,7 +458,7 @@ def evaluate_model_on_validation(model, val_loader):
     
     return mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5
  
-def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
+def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
     
     if embedding_dim % 2 != 0:
         raise ValueError("Embedding Dimensions have to be even")
@@ -491,7 +491,7 @@ def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embeddi
     # Optionally evaluate non-uncertainty models
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_cosukg", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
 
-def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
+def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
     
     if embedding_dim % 2 != 0:
         raise ValueError("Embedding Dimensions have to be even")
@@ -557,7 +557,7 @@ def train_and_evaluate_neg_confidences_similarity(file_path, dataset_models, emb
     # Optionally evaluate non-uncertainty models
     train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_similarity", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
 
-def train_and_evaluate_normal_models(dataset, function_name, embedding_dim, batch_size, num_epochs, margin, result_file='evaluation_results.csv'):
+def train_and_evaluate_normal_models(dataset, function_name, embedding_dim, batch_size, num_epochs, result_file='evaluation_results.csv'):
     dataset = dataset
     training = dataset.training
     validation = dataset.validation
