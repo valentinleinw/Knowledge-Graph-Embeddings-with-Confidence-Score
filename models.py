@@ -68,14 +68,6 @@ class TransEUncertainty(nn.Module):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         loss = torch.mean(0.5 *  torch.log(confidence_scores + 1e-8) + (pos_scores - confidence_scores) ** 2 / (2 * confidence_scores + 1e-8))
         return loss
-        
-    
-    def contrastive_loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
-        
-        pos_scores = torch.norm(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]), p=1, dim=1)
-        neg_scores = torch.norm(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), p=1, dim=1)
-        loss = torch.mean(confidence_scores * F.relu(margin - pos_scores + neg_scores))
-        return loss
     
     def kl_divergence_loss(self, pos_triples, confidence_scores):
         
@@ -142,12 +134,6 @@ class DistMultUncertainty(nn.Module):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
                 
         return torch.mean(0.5 * torch.log(confidence_scores + 1e-8) +((pos_scores - confidence_scores) ** 2) / (2 * confidence_scores + 1e-8))
-
-    def contrastive_loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
-        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
-        neg_scores = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
-
-        return torch.mean(confidence_scores * F.relu(margin - pos_scores + neg_scores))
 
     def kl_divergence_loss(self, pos_triples, confidence_scores):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
@@ -223,12 +209,6 @@ class ComplExUncertainty(nn.Module):
 
         return loss.mean()
     
-    def contrastive_loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
-        pos_score = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
-        neg_score = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
-
-        loss = confidence_scores * F.relu(margin - pos_score + neg_score)
-        return loss.mean()
     
     def kl_divergence_loss(self, pos_triples, confidence_scores):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
