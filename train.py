@@ -61,7 +61,7 @@ def initialize(file_path, batch_size):
 
 def training_loop(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset,
                   num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
-                  patience=5, delta=1e-4):
+                  patience=10, delta=1e-4):
     # Training Loop with validation and early stopping
     for name, model in models.items():
         print(f"\nTraining {name}...")
@@ -155,7 +155,7 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
 
 def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_loader, optimizers, loss_function, dataset,
                                         num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
-                  patience=5, delta=1e-4):
+                  patience=10, delta=1e-4):
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
@@ -241,7 +241,7 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
 
 def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test_loader, optimizers,
                                         loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
-                                        patience=5, delta=1e-4):
+                                        patience=10, delta=1e-4):
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
@@ -327,7 +327,7 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
 
 def training_loop_neg_confidences_similarity(models, train_loader, val_loader, test_loader, optimizers, 
                                             loss_function, dataset, num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
-                                            patience=5, delta=1e-4):
+                                            patience=10, delta=1e-4):
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
@@ -614,7 +614,7 @@ def helper_for_normal_models(model, function_name, dataset_name, name, num_epoch
 
 def train_and_evaluate(file_path, dataset_models, loss_function="loss", embedding_dim=50, batch_size=64, 
                                 num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
-                                patience = 5, delta=1e-4):
+                                patience = 10, delta=1e-4):
     dataset, num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
     
     if embedding_dim % 2 != 0:
