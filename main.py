@@ -81,7 +81,7 @@ if __name__ == "__main__":
         ("datasets/YAGO310_ranked_appearances___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_ranked_appearances_with_confidence_results/evaluation_results")]
     
     for origin, dataset, result in triples:
-        for i in range(3):
+        for i in range(10):
             train.train_and_evaluate(origin, dataset, "loss", embedding_dim=20, batch_size=48, num_epochs=10, result_file=result + "_loss.csv")
             
             train.train_and_evaluate(origin, dataset, "objective", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_objective.csv")
