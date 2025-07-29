@@ -483,13 +483,13 @@ def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embeddi
     training_loop_neg_confidences_cosukg(
         models, full_train_loader, val_loader=val_loader, test_loader=test_loader,
         optimizers=optimizers, loss_function="loss",
-        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
+        num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
         file_path=file_path, result_file=result_file
     )
 
     # Optionally evaluate non-uncertainty models
-    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_cosukg", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_cosukg", embedding_dim=embedding_dim, batch_size=batch_size, num_epochs=num_epochs, result_file=result_file)
 
 def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
     
@@ -516,13 +516,13 @@ def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedd
     training_loop_neg_confidences_inverse(
         models, full_train_loader, val_loader=val_loader, test_loader=test_loader,
         optimizers=optimizers, loss_function="loss",
-        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
+        num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
         file_path=file_path, result_file=result_file
     )
 
     # Optionally evaluate non-uncertainty models
-    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_inverse", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_inverse", embedding_dim=embedding_dim, batch_size=batch_size, num_epochs=num_epochs, result_file=result_file)
 
 def train_and_evaluate_neg_confidences_similarity(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     
@@ -549,13 +549,13 @@ def train_and_evaluate_neg_confidences_similarity(file_path, dataset_models, emb
     training_loop_neg_confidences_similarity(
         models, full_train_loader, val_loader=val_loader, test_loader=test_loader,
         optimizers=optimizers, loss_function="loss",
-        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
+        num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
         file_path=file_path, result_file=result_file
     )
 
     # Optionally evaluate non-uncertainty models
-    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_similarity", embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_similarity", embedding_dim=embedding_dim, batch_size=batch_size, num_epochs=num_epochs, result_file=result_file)
 
 def train_and_evaluate_normal_models(dataset, function_name, embedding_dim, batch_size, num_epochs, result_file='evaluation_results.csv'):
     dataset = dataset
@@ -637,9 +637,9 @@ def train_and_evaluate(file_path, dataset_models, loss_function="loss", embeddin
     training_loop(
         models, full_train_loader, val_loader=val_loader, test_loader=test_loader,
         optimizers=optimizers, loss_function=loss_function,
-        dataset=dataset, num_epochs=num_epochs, num_entities=num_entities,
+        num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
         file_path=file_path, result_file=result_file, patience=patience, delta=delta
     )
 
-    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate" + "_" + loss_function, embedding_dim, batch_size, num_epochs, margin, result_file=result_file)
+    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate" + "_" + loss_function, embedding_dim=embedding_dim, batch_size=batch_size, num_epochs=num_epochs, result_file=result_file)
