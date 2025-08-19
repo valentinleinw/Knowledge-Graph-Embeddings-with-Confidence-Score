@@ -14,7 +14,10 @@ if __name__ == "__main__":
         group_cols = ["Model"]
 
         # Group by these and average the rest
-        df_avg = df.groupby(group_cols, as_index=False).mean(numeric_only=True)
+        df_avg = df.groupby("Model", as_index=False).agg({
+            **{col: "mean" for col in df.select_dtypes(include="number").columns},
+            "Function": "first"   # keep the Function value
+        })
 
         # Save back to the same file, overwriting the original
         df_avg.to_csv(csv_path, index=False)
@@ -81,20 +84,20 @@ if __name__ == "__main__":
         ("datasets/YAGO310_ranked_appearances___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_ranked_appearances_with_confidence_results/evaluation_results")]
     
     for origin, dataset, result in triples:
-        for i in range(10):
-            train.train_and_evaluate(origin, dataset, "loss", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_loss.csv")
+        for i in range(1):
+            train.train_and_evaluate(origin, dataset, "loss", embedding_dim=2, batch_size=20, num_epochs=1, result_file=result + "_loss.csv")
             
-            train.train_and_evaluate(origin, dataset, "objective", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_objective.csv")
+            train.train_and_evaluate(origin, dataset, "objective", embedding_dim=2, batch_size=20, num_epochs=1, result_file=result + "_objective.csv")
 
-            train.train_and_evaluate(origin, dataset, "divergence", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_divergence.csv")
+            train.train_and_evaluate(origin, dataset, "divergence", embedding_dim=2, batch_size=20, num_epochs=1, result_file=result + "_divergence.csv")
 
-            train.train_and_evaluate(origin, dataset, "gaussian", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_gaussian.csv")
+            train.train_and_evaluate(origin, dataset, "gaussian", embedding_dim=2, batch_size=20, num_epochs=1, result_file=result + "_gaussian.csv")
 
-            train.train_and_evaluate(origin, dataset, "softplus", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_softplus.csv")
+            train.train_and_evaluate(origin, dataset, "softplus", embedding_dim=2, batch_size=20, num_epochs=1, result_file=result + "_softplus.csv")
             
-            train.train_and_evaluate_neg_confidences_cosukg(origin, dataset, embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_cosukg.csv")
+            train.train_and_evaluate_neg_confidences_cosukg(origin, dataset, embedding_dim=2, batch_size=20, num_epochs=1, result_file=result + "_cosukg.csv")
 
-            train.train_and_evaluate_neg_confidences_inverse(origin, dataset, embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_inverse.csv")
+            train.train_and_evaluate_neg_confidences_inverse(origin, dataset, embedding_dim=2, batch_size=20, num_epochs=1, result_file=result + "_inverse.csv")
 
             #train.train_and_evaluate_neg_confidences_similarity(origin, dataset, embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_similarity.csv")
     
