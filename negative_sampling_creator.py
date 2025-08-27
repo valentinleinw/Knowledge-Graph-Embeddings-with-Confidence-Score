@@ -62,28 +62,45 @@ def precompute_similar_entities(entity_embeddings, top_k=10):
     similarity_scores = np.take_along_axis(similarity_matrix, top_similar, axis=1)
     return top_similar, similarity_scores
 
-def weighted_choice(candidates, weights):
-    probabilities = weights / np.sum(weights)
+def prepare_sampling_data(top_similar, similarity_scores):
+
+    n_entities, k = top_similar.shape
+
+    probas = similarity_scores / similarity_scores.sum(axis=1, keepdims=True)
+
+    # build index maps (list of dicts)
+    index_maps = []
+    for i in range(n_entities):
+        index_maps.append({c: j for j, c in enumerate(top_similar[i])})
+
+    return probas, index_maps
+
+
+def weighted_choice(candidates, probabilities):
     return np.random.choice(candidates, p=probabilities)
+
 
 def negative_sampling_similarity(triples, num_samples, top_similar, similarity_scores):
     neg_quad = []
 
+    # Precompute probas + index maps
+    probas, index_maps = prepare_sampling_data(top_similar, similarity_scores)
+
     for head, relation, tail, confidence in triples:
         for _ in range(num_samples):
             if np.random.rand() > 0.5:
+                # replace head
                 candidates = top_similar[head]
-                weights = similarity_scores[head]
-                new_head = weighted_choice(candidates, weights)
+                new_head = weighted_choice(candidates, probas[head])
                 new_tail = tail
-                similarity_score = similarity_scores[head][np.where(candidates == new_head)[0][0]]
+                similarity_score = similarity_scores[head][index_maps[head][new_head]]
             else:
+                # replace tail
                 candidates = top_similar[tail]
-                weights = similarity_scores[tail]
-                new_tail = weighted_choice(candidates, weights)
+                new_tail = weighted_choice(candidates, probas[tail])
                 new_head = head
-                similarity_score = similarity_scores[tail][np.where(candidates == new_tail)[0][0]]
-            
+                similarity_score = similarity_scores[tail][index_maps[tail][new_tail]]
+
             new_confidence = confidence * similarity_score
             neg_quad.append((new_head, relation, new_tail, new_confidence))
 

@@ -327,62 +327,92 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
 
 def training_loop_neg_confidences_similarity(models, train_loader, val_loader, test_loader, optimizers, 
                                             num_epochs, embedding_dim, batch_size, margin, file_path, result_file,
-                                            patience=10, delta=1e-4):
+                                            patience=10, delta=1e-4, device="cuda"):
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
         best_val_mrr = float('-inf')
         epochs_no_improve = 0
-        
-        model.train()  # Set model to training mode
+
+        model.to(device)
+        model.train()
+
         for epoch in range(num_epochs):
             total_loss = 0
-            for batch in train_loader:
-                heads, relations, tails, confidences = batch
-                heads = heads.clone().detach().requires_grad_(False)
-                relations = relations.clone().detach().requires_grad_(False)
-                tails = tails.clone().detach().requires_grad_(False)
-                pos_confidences = confidences.clone().detach().requires_grad_(True)
-                
+
+            # === Precompute neighbors once per epoch ===
+            with torch.no_grad():
                 if isinstance(model, ComplExUncertainty):
-                    # For complex-valued embeddings (real + imaginary)
-                    entity_embeddings_real = model.entity_im_embeddings.weight.detach().cpu().numpy()
-                    entity_embeddings_imag = model.entity_re_embeddings.weight.detach().cpu().numpy()
-                    
-                    # Concatenate them to form a full representation
-                    entity_embeddings = np.concatenate([entity_embeddings_real, entity_embeddings_imag], axis=1)
+                    # ComplEx: concatenate real + imaginary embeddings
+                    entity_embeddings = torch.cat(
+                        [model.entity_im_embeddings.weight.detach(),
+                         model.entity_re_embeddings.weight.detach()],
+                        dim=1
+                    )
                 else:
-                    # For regular embeddings
-                    entity_embeddings = model.entity_embeddings.weight.detach().cpu().numpy()
+                    entity_embeddings = model.entity_embeddings.weight.detach()
 
-                # Generate negative samples with confidence scores
-                top_similar, similarity_scores = negative_sampling_creator.precompute_similar_entities(entity_embeddings, top_k=10)
-                neg_quad = negative_sampling_creator.negative_sampling_similarity(zip(heads, relations, tails, confidences), num_samples=5, top_similar=top_similar, similarity_scores=similarity_scores)
+                top_similar, similarity_scores = negative_sampling_creator.precompute_similar_entities(
+                    entity_embeddings, top_k=10
+                )
+
+                # Ensure PyTorch tensors
+                if isinstance(top_similar, np.ndarray):
+                    top_similar = torch.tensor(top_similar, device=device, dtype=torch.long)
+                if isinstance(similarity_scores, np.ndarray):
+                    similarity_scores = torch.tensor(similarity_scores, device=device, dtype=torch.float)
 
 
-                # Unzip negative samples
-                neg_heads, neg_relations, neg_tails, neg_confidences = zip(*neg_quad)
-                neg_heads = torch.tensor(neg_heads, dtype=torch.long)
-                neg_relations = torch.tensor(neg_relations, dtype=torch.long)
-                neg_tails = torch.tensor(neg_tails, dtype=torch.long)
-                neg_confidences = torch.tensor(neg_confidences, dtype=torch.float)  # Convert to tensor
+            # === Training loop ===
+            for heads, relations, tails, confidences in train_loader:
+                heads, relations, tails, confidences = [x.to(device) for x in (heads, relations, tails, confidences)]
+                pos_confidences = confidences  # already a tensor
 
-                # Compute loss and optimize
+                # === Vectorized negative sampling ===
+                replace_mask = torch.rand(len(heads), device=device) > 0.5
+
+                # Replace heads
+                cand_heads = top_similar[heads]           # shape: [batch, k]
+                prob_heads = similarity_scores[heads]     # shape: [batch, k]
+                idx_heads = torch.multinomial(prob_heads, num_samples=1).squeeze()
+                new_heads = cand_heads[torch.arange(len(heads), device=device), idx_heads]
+
+                # Replace tails
+                cand_tails = top_similar[tails]
+                prob_tails = similarity_scores[tails]
+                idx_tails = torch.multinomial(prob_tails, num_samples=1).squeeze()
+                new_tails = cand_tails[torch.arange(len(tails), device=device), idx_tails]
+
+                # Apply mask
+                neg_heads = torch.where(replace_mask, new_heads, heads)
+                neg_tails = torch.where(replace_mask, tails, new_tails)
+
+                # Compute similarity scores for negatives
+                sim_scores = torch.where(
+                    replace_mask,
+                    prob_heads[torch.arange(len(heads), device=device), idx_heads],
+                    prob_tails[torch.arange(len(tails), device=device), idx_tails]
+                )
+                neg_confidences = pos_confidences * sim_scores
+
+                # === Compute loss ===
                 optimizers[name].zero_grad()
                 pos_triples = torch.stack([heads, relations, tails], dim=1)
-                neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
+                neg_triples = torch.stack([neg_heads, relations, neg_tails], dim=1)
 
                 loss = model.loss_neg(pos_triples, neg_triples, pos_confidences, neg_confidences, margin)
                 loss.backward()
                 optimizers[name].step()
 
                 total_loss += loss.item()
-        
-            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
-            
+
             avg_train_loss = total_loss / len(train_loader)
-            
-            # Validation evaluation (early stopping based on this)
+            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_train_loss:.4f}")
+
+            # === Validation with early stopping ===
             if val_loader is not None:
                 model.eval()
                 with torch.no_grad():
@@ -391,37 +421,38 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
                     else:
                         _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader)
 
-                    print(f"Validation MRR: {val_mrr:.4f}")
+                print(f"Validation MRR: {val_mrr:.4f}")
 
-                    # Early Stopping Check
-                    if val_mrr > best_val_mrr + delta:
-                        best_val_mrr = val_mrr
-                        epochs_no_improve = 0
-                        best_model_state = model.state_dict()
-                    else:
-                        epochs_no_improve += 1
-                        print(f"No improvement for {epochs_no_improve} epoch(s).")
-                        if epochs_no_improve >= patience:
-                            print(f"Early stopping triggered at epoch {epoch+1}")
-                            model.load_state_dict(best_model_state)
-                            break
-            
+                if val_mrr > best_val_mrr + delta:
+                    best_val_mrr = val_mrr
+                    epochs_no_improve = 0
+                    best_model_state = model.state_dict()
+                else:
+                    epochs_no_improve += 1
+                    print(f"No improvement for {epochs_no_improve} epoch(s).")
+                    if epochs_no_improve >= patience:
+                        print(f"Early stopping triggered at epoch {epoch+1}")
+                        model.load_state_dict(best_model_state)
+                        break
+                model.train()
 
         loss_model = avg_train_loss
-    
+
+        # === Final test evaluation ===
         if test_loader is not None:
             print(f"\nEvaluating {name} on test set...")
-            if isinstance(model, ComplExUncertainty):  # Check if the model is ComplEx
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)  # Use `evaluate` here instead
+            if isinstance(model, ComplExUncertainty):
+                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)
             else:
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)  # Use `evaluate` here instead
-            
-            # Print results
-            print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
-            
-            # Log results to CSV
-            csvEditor.write_results_to_csv(result_file, "train_and_evaluate_neg_confidences_similarity", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
+                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)
 
+            print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
+
+            csvEditor.write_results_to_csv(
+                result_file, "train_and_evaluate_neg_confidences_similarity", name,
+                mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10,
+                file_path, loss_model, num_epochs, embedding_dim, batch_size, margin
+            )
 
 # helper
 def evaluate_model_on_validation(model, val_loader):
