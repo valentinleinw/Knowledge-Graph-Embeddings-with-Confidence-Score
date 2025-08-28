@@ -62,6 +62,26 @@ def initialize(file_path, batch_size):
 def training_loop(models, train_loader, val_loader, test_loader, optimizers, loss_function,
                   num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
                   patience=10, delta=1e-4):
+    
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+    print(f"Using device: {device}")
+
+    # Pre-select loss function (avoid per-batch if/else)
+    loss_fn_map = {
+        "loss": lambda model, pos, neg, conf: model.loss(pos, neg, conf, margin),
+        "objective": lambda model, pos, neg, conf: model.objective_function(pos, neg, conf),
+        "softplus": lambda model, pos, neg, conf: model.softplus_loss(pos, neg, conf),
+        "gaussian": lambda model, pos, _, conf: model.gaussian_nll_loss(pos, conf),
+        "contrastive": lambda model, pos, neg, conf: model.contrastive_loss(pos, neg, margin, conf),
+        "divergence": lambda model, pos, _, conf: model.kl_divergence_loss(pos, conf),
+    }
+    selected_loss = loss_fn_map[loss_function]
+    
     # Training Loop with validation and early stopping
     for name, model in models.items():
         print(f"\nTraining {name}...")
@@ -91,18 +111,7 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
                 optimizers[name].zero_grad()
                 pos_triples = torch.stack([heads, relations, tails], dim=1)
                 neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
-                if loss_function == "loss":
-                    loss = model.loss(pos_triples, neg_triples, confidences, margin)
-                elif loss_function == "objective":
-                    loss = model.objective_function(pos_triples, neg_triples, confidences)
-                elif loss_function == "softplus":
-                    loss = model.softplus_loss(pos_triples, neg_triples, confidences)
-                elif loss_function == "gaussian":
-                    loss = model.gaussian_nll_loss(pos_triples, confidences)
-                elif loss_function == "contrastive":
-                    loss = model.contrastive_loss(pos_triples, neg_triples, margin, confidences)
-                elif loss_function == "divergence":
-                    loss = model.kl_divergence_loss(pos_triples, confidences)
+                loss = selected_loss(model, pos_triples, neg_triples, confidences)
                 loss.backward()
                 optimizers[name].step()
 
@@ -116,9 +125,9 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
                 model.eval()
                 with torch.no_grad():
                     if isinstance(model, ComplExUncertainty):
-                        _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader)
+                        _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader, device)
                     else:
-                        _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader)
+                        _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader, device)
 
                     print(f"Validation MRR: {val_mrr:.4f}")
 
@@ -142,9 +151,9 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
         if test_loader is not None:
             model.eval()
             if isinstance(model, ComplExUncertainty):
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)
+                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader, device)
             else:
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)
+                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader, device)
 
             print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
                 

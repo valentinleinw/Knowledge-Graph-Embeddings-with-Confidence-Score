@@ -16,10 +16,10 @@ def evaluate(model, test_loader, device='cpu', top_k=10):
     with torch.no_grad():  # Disable gradient calculation
         for batch in test_loader:
             heads, relations, tails, confidences = batch
-            heads = heads.to(device)
-            relations = relations.to(device)
-            tails = tails.to(device)
-            confidences = confidences.to(device)
+            heads.to(device, dtype=torch.long),
+            relations.to(device, dtype=torch.long),
+            tails.to(device, dtype=torch.long),
+            confidences.to(device, dtype=torch.float32)
 
             # Compute embeddings for the current batch
             head_embeddings = entity_embeddings[heads]  # (batch_size, embedding_dim)
