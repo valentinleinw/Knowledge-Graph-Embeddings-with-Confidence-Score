@@ -69,7 +69,6 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
         device = torch.device("mps")
     else:
         device = torch.device("cpu")
-    print(f"Using device: {device}")
 
     # Pre-select loss function (avoid per-batch if/else)
     loss_fn_map = {
@@ -165,6 +164,14 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
 def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_loader, optimizers,
                                         num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
                   patience=10, delta=1e-4):
+    
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+    
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
@@ -213,9 +220,9 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
                 model.eval()
                 with torch.no_grad():
                     if isinstance(model, ComplExUncertainty):
-                        _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader)
+                        _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader, device)
                     else:
-                        _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader)
+                        _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader, device)
 
                     print(f"Validation MRR: {val_mrr:.4f}")
 
@@ -238,9 +245,9 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
         if test_loader is not None:
             print(f"\nEvaluating {name} on test set...")
             if isinstance(model, ComplExUncertainty):  # Check if the model is ComplEx
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)  # Use `evaluate` here instead
+                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader, device)
             else:
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)  # Use `evaluate` here instead
+                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader, device)
             
             # Print results
             print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
@@ -251,6 +258,14 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
 def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test_loader, optimizers,
                                         num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
                                         patience=10, delta=1e-4):
+    
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+    
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
@@ -299,9 +314,9 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
                 model.eval()
                 with torch.no_grad():
                     if isinstance(model, ComplExUncertainty):
-                        _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader)
+                        _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader, device)
                     else:
-                        _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader)
+                        _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader, device)
 
                     print(f"Validation MRR: {val_mrr:.4f}")
 
@@ -324,9 +339,9 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
         if test_loader is not None:
             print(f"\nEvaluating {name} on test set...")
             if isinstance(model, ComplExUncertainty):  # Check if the model is ComplEx
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)  # Use `evaluate` here instead
+                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader, device)
             else:
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)  # Use `evaluate` here instead
+                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader, device)
             
             # Print results
             print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
@@ -338,7 +353,12 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
                                             num_epochs, embedding_dim, batch_size, margin, file_path, result_file,
                                             patience=10, delta=1e-4, device="cuda"):
     
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
     
     for name, model in models.items():
         print(f"\nTraining {name}...")
@@ -426,9 +446,9 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
                 model.eval()
                 with torch.no_grad():
                     if isinstance(model, ComplExUncertainty):
-                        _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader)
+                        _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader, device)
                     else:
-                        _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader)
+                        _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader, device)
 
                 print(f"Validation MRR: {val_mrr:.4f}")
 
@@ -451,9 +471,9 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
         if test_loader is not None:
             print(f"\nEvaluating {name} on test set...")
             if isinstance(model, ComplExUncertainty):
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader)
+                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader, device)
             else:
-                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader)
+                mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader, device)
 
             print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
 
