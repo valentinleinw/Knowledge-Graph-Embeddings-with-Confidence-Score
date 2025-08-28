@@ -378,34 +378,36 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
                     # ComplEx: concatenate real + imaginary embeddings
                     entity_embeddings = torch.cat(
                         [model.entity_im_embeddings.weight.detach(),
-                         model.entity_re_embeddings.weight.detach()],
+                        model.entity_re_embeddings.weight.detach()],
                         dim=1
                     )
                 else:
                     entity_embeddings = model.entity_embeddings.weight.detach()
 
+                # Move to CPU for sklearn
+                entity_embeddings_cpu = entity_embeddings.cpu().numpy()
+
+                # Compute top similar entities using sklearn
                 top_similar, similarity_scores = negative_sampling_creator.precompute_similar_entities(
-                    entity_embeddings, top_k=10
+                    entity_embeddings_cpu, top_k=10
                 )
 
-                # Ensure PyTorch tensors
-                if isinstance(top_similar, np.ndarray):
-                    top_similar = torch.tensor(top_similar, device=device, dtype=torch.long)
-                if isinstance(similarity_scores, np.ndarray):
-                    similarity_scores = torch.tensor(similarity_scores, device=device, dtype=torch.float)
+                # Convert back to torch tensors on the original device
+                top_similar = torch.tensor(top_similar, device=device, dtype=torch.long)
+                similarity_scores = torch.tensor(similarity_scores, device=device, dtype=torch.float)
 
 
-            # === Training loop ===
             for heads, relations, tails, confidences in train_loader:
-                heads, relations, tails, confidences = [x.to(device) for x in (heads, relations, tails, confidences)]
-                pos_confidences = confidences  # already a tensor
+                heads = heads.to(device, dtype=torch.long)
+                relations = relations.to(device, dtype=torch.long)
+                tails = tails.to(device, dtype=torch.long)
+                confidences = confidences.to(device, dtype=torch.float32)
+                pos_confidences = confidences  
 
-                # === Vectorized negative sampling ===
                 replace_mask = torch.rand(len(heads), device=device) > 0.5
 
-                # Replace heads
-                cand_heads = top_similar[heads]           # shape: [batch, k]
-                prob_heads = similarity_scores[heads]     # shape: [batch, k]
+                cand_heads = top_similar[heads]           
+                prob_heads = similarity_scores[heads]    
                 idx_heads = torch.multinomial(prob_heads, num_samples=1).squeeze()
                 new_heads = cand_heads[torch.arange(len(heads), device=device), idx_heads]
 
@@ -427,7 +429,6 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
                 )
                 neg_confidences = pos_confidences * sim_scores
 
-                # === Compute loss ===
                 optimizers[name].zero_grad()
                 pos_triples = torch.stack([heads, relations, tails], dim=1)
                 neg_triples = torch.stack([neg_heads, relations, neg_tails], dim=1)
@@ -441,7 +442,6 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
             avg_train_loss = total_loss / len(train_loader)
             print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_train_loss:.4f}")
 
-            # === Validation with early stopping ===
             if val_loader is not None:
                 model.eval()
                 with torch.no_grad():
@@ -467,7 +467,6 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
 
         loss_model = avg_train_loss
 
-        # === Final test evaluation ===
         if test_loader is not None:
             print(f"\nEvaluating {name} on test set...")
             if isinstance(model, ComplExUncertainty):
