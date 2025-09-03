@@ -1,6 +1,5 @@
 pykeen
 pandas
-os
 csv
 torch
 numpy
