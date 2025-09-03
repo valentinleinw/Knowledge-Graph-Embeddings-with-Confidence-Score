@@ -1,6 +1,5 @@
 pykeen
 pandas
-csv
 torch
 numpy
 sklearn
