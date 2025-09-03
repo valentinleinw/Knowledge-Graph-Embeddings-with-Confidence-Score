@@ -11,7 +11,7 @@ from pykeen.training import SLCWATrainingLoop
 import evaluator
 import negative_sampling_creator
 from sklearn.model_selection import train_test_split
-import numpy as np
+from pykeen.training.callbacks import EvaluationTrainingCallback
 
 
 class KnowledgeGraphDataset(Dataset):
@@ -643,17 +643,18 @@ def helper_for_normal_models(model, function_name, dataset_name, name, num_epoch
         triples_factory=training,
         optimizer=optimizer,
     )
+    
+    eval_callback = EvaluationTrainingCallback(
+        triples_factory=validation,
+        prefix="validation",
+    )
 
 
     losses_per_epoch = training_loop_local.train(
         triples_factory=training,
         num_epochs=num_epochs,
         batch_size=batch_size,
-        callbacks="evaluation-loop",
-        callbacks_kwargs=dict(
-            prefix="validation",
-            factory=validation,
-        ),
+        callbacks=[eval_callback],
     )
     
     evaluation_loop = LCWAEvaluationLoop(
