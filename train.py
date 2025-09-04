@@ -645,7 +645,6 @@ def helper_for_normal_models(model, function_name, dataset_name, name, num_epoch
     )
     
     eval_callback = EvaluationTrainingCallback(
-        training_loop=training_loop_local,
         evaluation_triples=validation,
         prefix="validation",
     )
