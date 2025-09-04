@@ -645,9 +645,10 @@ def helper_for_normal_models(model, function_name, dataset_name, name, num_epoch
     )
     
     eval_callback = EvaluationTrainingCallback(
-        evaluation_triples=validation,
+        evaluation_triples=validation.mapped_triples,
         prefix="validation",
     )
+
 
 
     losses_per_epoch = training_loop_local.train(
@@ -658,9 +659,9 @@ def helper_for_normal_models(model, function_name, dataset_name, name, num_epoch
     )
     
     evaluation_loop = LCWAEvaluationLoop(
-    model=model,
-    triples_factory=testing,
-)
+        model=model,
+        triples_factory=testing.mapped_triples,
+    )
 
     results = evaluation_loop.evaluate()
     
