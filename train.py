@@ -548,7 +548,7 @@ def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embeddi
     )
 
     # Optionally evaluate non-uncertainty models
-    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_cosukg", embedding_dim=embedding_dim, batch_size=batch_size, num_epochs=num_epochs, result_file=result_file)
+    #train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_cosukg", embedding_dim=embedding_dim, batch_size=batch_size, num_epochs=num_epochs, result_file=result_file)
 
 def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv'):
     
@@ -581,7 +581,7 @@ def train_and_evaluate_neg_confidences_inverse(file_path, dataset_models, embedd
     )
 
     # Optionally evaluate non-uncertainty models
-    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_inverse", embedding_dim=embedding_dim, batch_size=batch_size, num_epochs=num_epochs, result_file=result_file)
+    #train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_inverse", embedding_dim=embedding_dim, batch_size=batch_size, num_epochs=num_epochs, result_file=result_file)
 
 def train_and_evaluate_neg_confidences_similarity(file_path, dataset_models, embedding_dim=50, batch_size=64, num_epochs=10, margin=1.0, result_file='evaluation_results.csv', k_folds=5):
     
@@ -614,7 +614,7 @@ def train_and_evaluate_neg_confidences_similarity(file_path, dataset_models, emb
     )
 
     # Optionally evaluate non-uncertainty models
-    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_similarity", embedding_dim=embedding_dim, batch_size=batch_size, num_epochs=num_epochs, result_file=result_file)
+    #train_and_evaluate_normal_models(dataset_models, "train_and_evaluate_neg_confidences_similarity", embedding_dim=embedding_dim, batch_size=batch_size, num_epochs=num_epochs, result_file=result_file)
 
 def train_and_evaluate_normal_models(dataset, function_name, embedding_dim, batch_size, num_epochs, result_file='evaluation_results.csv'):
     dataset = dataset
@@ -711,4 +711,4 @@ def train_and_evaluate(file_path, dataset_models, loss_function="loss", embeddin
         file_path=file_path, result_file=result_file, patience=patience, delta=delta
     )
 
-    train_and_evaluate_normal_models(dataset_models, "train_and_evaluate" + "_" + loss_function, embedding_dim=embedding_dim, batch_size=batch_size, num_epochs=num_epochs, result_file=result_file)
+    #train_and_evaluate_normal_models(dataset_models, "train_and_evaluate" + "_" + loss_function, embedding_dim=embedding_dim, batch_size=batch_size, num_epochs=num_epochs, result_file=result_file)
