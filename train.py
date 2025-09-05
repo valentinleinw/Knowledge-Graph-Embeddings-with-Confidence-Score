@@ -128,7 +128,7 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
                     else:
                         _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader, device)
 
-                    print(f"Validation MRR: {val_mrr:.4f}")
+                    #print(f"Validation MRR: {val_mrr:.4f}")
 
                     # Early Stopping Check
                     if val_mrr > best_val_mrr + delta:
