@@ -401,8 +401,7 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
                 heads = heads.to(device, dtype=torch.long)
                 relations = relations.to(device, dtype=torch.long)
                 tails = tails.to(device, dtype=torch.long)
-                confidences = confidences.to(device, dtype=torch.float32)
-                pos_confidences = confidences  
+                pos_confidences = confidences.to(device, dtype=torch.float32)
 
                 replace_mask = torch.rand(len(heads), device=device) > 0.5
 
