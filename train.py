@@ -117,7 +117,7 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
                 total_loss += loss.item()
 
             avg_train_loss = total_loss / len(train_loader)
-            print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss:.4f}")
+            #print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss:.4f}")
 
             # Validation evaluation (early stopping based on this)
             if val_loader is not None:
