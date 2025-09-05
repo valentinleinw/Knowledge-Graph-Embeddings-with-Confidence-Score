@@ -31,7 +31,7 @@ if __name__ == "__main__":
         ("datasets/CoDExSmall_logical___with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_logical_with_confidence_results/evaluation_results"),
         ("datasets/CoDExSmall_logical_with_distmult___with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_logical_with_distmult_with_confidence_results/evaluation_results"),
         ("datasets/CoDExSmall_model__ComplEx_with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_model_ComplEx_with_confidence_results/evaluation_results"),"""
-        ("datasets/CoDExSmall_model__DistMult_with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_model_DistMult_with_confidence_results/evaluation_results")
+        ("datasets/CoDExSmall_model__DistMult_with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_model_DistMult_with_confidence_results/evaluation_results"),
         """("datasets/CoDExSmall_model__TransE_with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_model_TransE_with_confidence_results/evaluation_results"),
         ("datasets/CoDExSmall_random_[0;0.5]__with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_random_with_confidences_results/evaluation_results"),
         ("datasets/CoDExSmall_random_[0;1]__with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_random1_with_confidences_results/evaluation_results"),
@@ -83,42 +83,46 @@ if __name__ == "__main__":
         ("datasets/YAGO310_random_[0.5;1]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random2_with_confidences_results/evaluation_results"),
         ("datasets/YAGO310_ranked_appearances___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_ranked_appearances_with_confidence_results/evaluation_results")"""]
     
-    for origin, dataset, result in triples:
-        for i in range(10):
-            train.train_and_evaluate(origin, dataset, "loss", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_loss.csv")
-            
-            train.train_and_evaluate(origin, dataset, "objective", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_objective.csv")
+    #for origin, dataset, result in triples:
+    ("datasets/CoDExSmall_model__DistMult_with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_model_DistMult_with_confidence_results/evaluation_results"),
+    origin = "datasets/CoDExSmall_model__DistMult_with_confidence.csv"
+    dataset = ds.CoDExSmall()
+    result = "results/CoDExSmall_model_DistMult_with_confidence_results/evaluation_results"
+    for i in range(10):
+        train.train_and_evaluate(origin, dataset, "loss", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_loss.csv")
+        
+        train.train_and_evaluate(origin, dataset, "objective", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_objective.csv")
 
-            train.train_and_evaluate(origin, dataset, "divergence", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_divergence.csv")
+        train.train_and_evaluate(origin, dataset, "divergence", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_divergence.csv")
 
-            train.train_and_evaluate(origin, dataset, "gaussian", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_gaussian.csv")
+        train.train_and_evaluate(origin, dataset, "gaussian", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_gaussian.csv")
 
-            train.train_and_evaluate(origin, dataset, "softplus", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_softplus.csv")
-            
-            train.train_and_evaluate_neg_confidences_cosukg(origin, dataset, embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_cosukg.csv")
+        train.train_and_evaluate(origin, dataset, "softplus", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_softplus.csv")
+        
+        train.train_and_evaluate_neg_confidences_cosukg(origin, dataset, embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_cosukg.csv")
 
-            train.train_and_evaluate_neg_confidences_inverse(origin, dataset, embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_inverse.csv")
+        train.train_and_evaluate_neg_confidences_inverse(origin, dataset, embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_inverse.csv")
 
-            train.train_and_evaluate_neg_confidences_similarity(origin, dataset, embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_similarity.csv")
-            
-            print("Finished iteration number " + i)
+        train.train_and_evaluate_neg_confidences_similarity(origin, dataset, embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_similarity.csv")
+        
+        print("Finished iteration number " + i)
+
+    avg(result + "_loss.csv")
     
-        avg(result + "_loss.csv")
-        
-        avg(result + "_objective.csv")
-        
-        avg(result + "_divergence.csv")
-        
-        avg(result + "_gaussian.csv")
-        
-        avg(result + "_softplus.csv")
-        
-        avg(result + "_cosukg.csv")
-        
-        avg(result + "_inverse.csv")
-        
-        avg(result + "_similarity.csv")
-        
-    print("Finished!")
+    avg(result + "_objective.csv")
+    
+    avg(result + "_divergence.csv")
+    
+    avg(result + "_gaussian.csv")
+    
+    avg(result + "_softplus.csv")
+    
+    avg(result + "_cosukg.csv")
+    
+    avg(result + "_inverse.csv")
+    
+    avg(result + "_similarity.csv")
+    
+print("Finished!")
     
     
