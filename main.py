@@ -104,7 +104,7 @@ if __name__ == "__main__":
 
         train.train_and_evaluate_neg_confidences_similarity(origin, dataset, embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_similarity.csv")
         
-        print("Finished iteration number " + i)
+        print("Finished iteration number " + str(i))
 
     avg(result + "_loss.csv")
     
