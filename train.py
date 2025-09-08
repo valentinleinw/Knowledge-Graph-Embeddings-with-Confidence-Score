@@ -85,7 +85,7 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
-        best_val_mrr = float('-inf')
+        best_loss = float("inf")
         epochs_no_improve = 0
 
         model.train()  # Set model to training mode
@@ -117,31 +117,20 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
                 total_loss += loss.item()
 
             avg_train_loss = total_loss / len(train_loader)
-            #print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss:.4f}")
+            print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {avg_train_loss:.4f}")
 
-            # Validation evaluation (early stopping based on this)
-            if val_loader is not None:
-                model.eval()
-                with torch.no_grad():
-                    if isinstance(model, ComplExUncertainty):
-                        _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader, device)
-                    else:
-                        _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader, device)
-
-                    #print(f"Validation MRR: {val_mrr:.4f}")
-
-                    # Early Stopping Check
-                    if val_mrr > best_val_mrr + delta:
-                        best_val_mrr = val_mrr
-                        epochs_no_improve = 0
-                        best_model_state = model.state_dict()
-                    else:
-                        epochs_no_improve += 1
-                        #print(f"No improvement for {epochs_no_improve} epoch(s).")
-                        if epochs_no_improve >= patience:
-                            #print(f"Early stopping triggered at epoch {epoch+1}")
-                            model.load_state_dict(best_model_state)
-                            break
+            # Early Stopping Check (based on training loss)
+            if avg_train_loss < best_loss - delta:
+                best_loss = avg_train_loss
+                epochs_no_improve = 0
+                best_model_state = model.state_dict()
+            else:
+                epochs_no_improve += 1
+                print(f"No improvement for {epochs_no_improve} epoch(s).")
+                if epochs_no_improve >= patience:
+                    print(f"Early stopping triggered at epoch {epoch+1}")
+                    model.load_state_dict(best_model_state)
+                    break
             
 
         loss_model = avg_train_loss
@@ -154,7 +143,7 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
             else:
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader, device)
 
-            #print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
+            print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
                 
             function_name = "train_and_evaluate" + "_" + loss_function
 
@@ -175,7 +164,7 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
-        best_val_mrr = float('-inf')
+        best_loss = float("inf")
         epochs_no_improve = 0
         
         model.train()  # Set model to training mode
@@ -211,46 +200,33 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
 
                 total_loss += loss.item()
         
-            #print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
+            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
             
             avg_train_loss = total_loss / len(train_loader)
             
-            # Validation evaluation (early stopping based on this)
-            if val_loader is not None:
-                model.eval()
-                with torch.no_grad():
-                    if isinstance(model, ComplExUncertainty):
-                        _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader, device)
-                    else:
-                        _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader, device)
-
-                    #print(f"Validation MRR: {val_mrr:.4f}")
-
-                    # Early Stopping Check
-                    if val_mrr > best_val_mrr + delta:
-                        best_val_mrr = val_mrr
-                        epochs_no_improve = 0
-                        best_model_state = model.state_dict()
-                    else:
-                        epochs_no_improve += 1
-                        #print(f"No improvement for {epochs_no_improve} epoch(s).")
-                        if epochs_no_improve >= patience:
-                            #print(f"Early stopping triggered at epoch {epoch+1}")
-                            model.load_state_dict(best_model_state)
-                            break
+            if avg_train_loss < best_loss - delta:
+                best_loss = avg_train_loss
+                epochs_no_improve = 0
+                best_model_state = model.state_dict()
+            else:
+                epochs_no_improve += 1
+                print(f"No improvement for {epochs_no_improve} epoch(s).")
+                if epochs_no_improve >= patience:
+                    print(f"Early stopping triggered at epoch {epoch+1}")
+                    model.load_state_dict(best_model_state)
+                    break
             
 
         loss_model = avg_train_loss
             
         if test_loader is not None:
-            #print(f"\nEvaluating {name} on test set...")
+            print(f"\nEvaluating {name} on test set...")
             if isinstance(model, ComplExUncertainty):  # Check if the model is ComplEx
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader, device)
             else:
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader, device)
             
-            # Print results
-            #print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
+            print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
             
             # Log results to CSV
             csvEditor.write_results_to_csv(result_file, "train_and_evaluate_neg_confidences_cosukg", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
@@ -269,7 +245,7 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
-        best_val_mrr = float('-inf')
+        best_loss = float("inf")
         epochs_no_improve = 0
         
         model.train()  # Set model to training mode
@@ -305,33 +281,22 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
 
                 total_loss += loss.item()
         
-            #print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
+            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader)}")
             
             avg_train_loss = total_loss / len(train_loader)
             
             # Validation evaluation (early stopping based on this)
-            if val_loader is not None:
-                model.eval()
-                with torch.no_grad():
-                    if isinstance(model, ComplExUncertainty):
-                        _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader, device)
-                    else:
-                        _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader, device)
-
-                    #print(f"Validation MRR: {val_mrr:.4f}")
-
-                    # Early Stopping Check
-                    if val_mrr > best_val_mrr + delta:
-                        best_val_mrr = val_mrr
-                        epochs_no_improve = 0
-                        best_model_state = model.state_dict()
-                    else:
-                        epochs_no_improve += 1
-                        #print(f"No improvement for {epochs_no_improve} epoch(s).")
-                        if epochs_no_improve >= patience:
-                            #print(f"Early stopping triggered at epoch {epoch+1}")
-                            model.load_state_dict(best_model_state)
-                            break
+            if avg_train_loss < best_loss - delta:
+                best_loss = avg_train_loss
+                epochs_no_improve = 0
+                best_model_state = model.state_dict()
+            else:
+                epochs_no_improve += 1
+                print(f"No improvement for {epochs_no_improve} epoch(s).")
+                if epochs_no_improve >= patience:
+                    print(f"Early stopping triggered at epoch {epoch+1}")
+                    model.load_state_dict(best_model_state)
+                    break
             
 
         loss_model = avg_train_loss
@@ -343,8 +308,7 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
             else:
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader, device)
             
-            # Print results
-            #print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
+            print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
             
             # Log results to CSV
             csvEditor.write_results_to_csv(result_file, "train_and_evaluate_neg_confidences_inverse", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
@@ -363,7 +327,7 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
     for name, model in models.items():
         print(f"\nTraining {name}...")
         loss_model = 0
-        best_val_mrr = float('-inf')
+        best_loss = float("inf")
         epochs_no_improve = 0
 
         model.to(device)
@@ -372,10 +336,8 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
         for epoch in range(num_epochs):
             total_loss = 0
 
-            # === Precompute neighbors once per epoch ===
             with torch.no_grad():
                 if isinstance(model, ComplExUncertainty):
-                    # ComplEx: concatenate real + imaginary embeddings
                     entity_embeddings = torch.cat(
                         [model.entity_im_embeddings.weight.detach(),
                         model.entity_re_embeddings.weight.detach()],
@@ -439,29 +401,19 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
                 total_loss += loss.item()
 
             avg_train_loss = total_loss / len(train_loader)
-            #print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_train_loss:.4f}")
+            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_train_loss:.4f}")
 
-            if val_loader is not None:
-                model.eval()
-                with torch.no_grad():
-                    if isinstance(model, ComplExUncertainty):
-                        _, val_mrr, _, _, _ = evaluator.evaluate_complex(model, val_loader, device)
-                    else:
-                        _, val_mrr, _, _, _ = evaluator.evaluate(model, val_loader, device)
-
-                #print(f"Validation MRR: {val_mrr:.4f}")
-
-                if val_mrr > best_val_mrr + delta:
-                    best_val_mrr = val_mrr
-                    epochs_no_improve = 0
-                    best_model_state = model.state_dict()
-                else:
-                    epochs_no_improve += 1
-                    #print(f"No improvement for {epochs_no_improve} epoch(s).")
-                    if epochs_no_improve >= patience:
-                        #print(f"Early stopping triggered at epoch {epoch+1}")
-                        model.load_state_dict(best_model_state)
-                        break
+            if avg_train_loss < best_loss - delta:
+                best_loss = avg_train_loss
+                epochs_no_improve = 0
+                best_model_state = model.state_dict()
+            else:
+                epochs_no_improve += 1
+                print(f"No improvement for {epochs_no_improve} epoch(s).")
+                if epochs_no_improve >= patience:
+                    print(f"Early stopping triggered at epoch {epoch+1}")
+                    model.load_state_dict(best_model_state)
+                    break
                 model.train()
 
         loss_model = avg_train_loss
@@ -473,7 +425,7 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
             else:
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader, device)
 
-            #print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
+            print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
 
             csvEditor.write_results_to_csv(
                 result_file, "train_and_evaluate_neg_confidences_similarity", name,
