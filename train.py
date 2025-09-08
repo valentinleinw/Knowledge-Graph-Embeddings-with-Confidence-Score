@@ -86,6 +86,7 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
         print(f"\nTraining {name}...")
         loss_model = 0
         best_loss = float("inf")
+        best_model_state = model.state_dict()
         epochs_no_improve = 0
 
         model.train()  # Set model to training mode
@@ -165,6 +166,7 @@ def training_loop_neg_confidences_cosukg(models, train_loader, val_loader, test_
         print(f"\nTraining {name}...")
         loss_model = 0
         best_loss = float("inf")
+        best_model_state = model.state_dict()
         epochs_no_improve = 0
         
         model.train()  # Set model to training mode
@@ -246,6 +248,7 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
         print(f"\nTraining {name}...")
         loss_model = 0
         best_loss = float("inf")
+        best_model_state = model.state_dict()
         epochs_no_improve = 0
         
         model.train()  # Set model to training mode
@@ -328,6 +331,7 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
         print(f"\nTraining {name}...")
         loss_model = 0
         best_loss = float("inf")
+        best_model_state = model.state_dict()
         epochs_no_improve = 0
 
         model.to(device)
