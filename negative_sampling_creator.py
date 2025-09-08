@@ -16,44 +16,71 @@ def negative_sampling(triples, num_entities):
             neg_triples.append((head, relation, new_tail))
     return neg_triples
     
+import numpy as np
+
 def negative_sampling_cosukg(triples, num_entities, num_samples, x1, x2):
-    neg_quad = []
-    for head, relation, tail, confidence in triples:
-        for _ in range(num_samples):
-            if confidence > x1:
-                # Generate (h, r, t, c') where c' is in (0, 1 - c]
-                new_confidence = np.random.uniform(0, 1 - confidence)
-                neg_quad.append((head, relation, tail, new_confidence))
-            elif confidence < x2:
-                # Generate (h, r, t, c') where c' is in [1 - c, 1)
-                new_confidence = np.random.uniform(1 - confidence, 1)
-                neg_quad.append((head, relation, tail, new_confidence))
-            else:
-                # Generate (h', r, t, c) or (h, r, t', c)
-                if np.random.rand() > 0.5:
-                    new_head = np.random.randint(num_entities)
-                    neg_quad.append((new_head, relation, tail, confidence))
-                else:
-                    new_tail = np.random.randint(num_entities)
-                    neg_quad.append((head, relation, new_tail, confidence))
-    return neg_quad 
+    triples = np.array(triples, dtype=np.float32)  # shape: (n, 4)
+    n_triples = triples.shape[0]
+    
+    # Total number of negative samples
+    total_samples = n_triples * num_samples
+    
+    # Expand triples to repeat each num_samples times
+    expanded = np.repeat(triples, num_samples, axis=0)
+    heads, rels, tails, confs = expanded.T
+    
+    # Preallocate arrays for output
+    new_heads = heads.copy().astype(np.int32)
+    new_rels = rels.copy().astype(np.int32)
+    new_tails = tails.copy().astype(np.int32)
+    new_confs = confs.copy()
+    
+    # Case 1: confidence > x1  → new_conf ∈ (0, 1 - c]
+    mask1 = confs > x1
+    new_confs[mask1] = np.random.uniform(0, 1 - confs[mask1])
+    
+    # Case 2: confidence < x2  → new_conf ∈ [1 - c, 1)
+    mask2 = confs < x2
+    new_confs[mask2] = np.random.uniform(1 - confs[mask2], 1)
+    
+    # Case 3: otherwise → corrupt head or tail
+    mask3 = ~(mask1 | mask2)
+    corrupt_heads = np.random.rand(mask3.sum()) > 0.5
+    
+    # Corrupt heads
+    new_heads[mask3][corrupt_heads] = np.random.randint(0, num_entities, corrupt_heads.sum())
+    # Corrupt tails
+    new_tails[mask3][~corrupt_heads] = np.random.randint(0, num_entities, (~corrupt_heads).sum())
+    
+    # Stack results back into quads
+    neg_quad = np.stack([new_heads, new_rels, new_tails, new_confs], axis=1)
+    return neg_quad
+
 
 def negative_sampling_inverse(triples, num_entities, num_samples):
-    neg_quad = []
-    for head, relation, tail, confidence in triples:
-        for _ in range(num_samples):
-            # Generate a corrupted triple (h', r, t) or (h, r, t')
-            if np.random.rand() > 0.5:
-                new_head = np.random.randint(num_entities)
-                new_tail = tail
-            else:
-                new_head = head
-                new_tail = np.random.randint(num_entities)
-            
-            # Compute confidence as an inverse function of the original confidence
-            new_confidence = 1 - confidence  
-            neg_quad.append((new_head, relation, new_tail, new_confidence))
-
+    triples = np.array(triples, dtype=np.float32) 
+    
+    # Expand triples num_samples times
+    expanded = np.repeat(triples, num_samples, axis=0)
+    heads, rels, tails, confs = expanded.T
+    
+    # Preallocate outputs
+    new_heads = heads.astype(np.int32).copy()
+    new_rels = rels.astype(np.int32).copy()
+    new_tails = tails.astype(np.int32).copy()
+    new_confs = (1 - confs)  # inverse confidence (vectorized)
+    
+    # Decide whether to corrupt head or tail
+    corrupt_heads = np.random.rand(expanded.shape[0]) > 0.5
+    
+    # Replace heads
+    new_heads[corrupt_heads] = np.random.randint(0, num_entities, corrupt_heads.sum())
+    
+    # Replace tails
+    new_tails[~corrupt_heads] = np.random.randint(0, num_entities, (~corrupt_heads).sum())
+    
+    # Stack into output array
+    neg_quad = np.stack([new_heads, new_rels, new_tails, new_confs], axis=1)
     return neg_quad
 
 def precompute_similar_entities(entity_embeddings, top_k=10):
