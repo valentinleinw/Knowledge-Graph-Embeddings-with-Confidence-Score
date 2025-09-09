@@ -167,12 +167,14 @@ def training_loop_neg_confidences_cosukg(models, train_loader, test_loader, devi
                 pos_confidences = confidences.to(device, dtype=torch.float)
 
                 # Generate negative samples with confidence scores
-                neg_quad = negative_sampling_creator.negative_sampling_cosukg(
-                    list(zip(heads, relations, tails, pos_confidences)), num_entities, 10, x1=0.8, x2=0.2, device=device
+                neg_triples, neg_confidences = negative_sampling_creator.negative_sampling_cosukg(
+                    list(zip(heads, relations, tails, pos_confidences)), 
+                    num_entities, 
+                    num_samples=10, 
+                    x1=0.8, 
+                    x2=0.2, 
+                    device=device
                 )
-
-                neg_triples = neg_quad[:, :3]
-                neg_confidences = neg_quad[:, 3]
 
                 pos_triples = torch.stack([heads, relations, tails], dim=1)
 
