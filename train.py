@@ -104,9 +104,9 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
                 neg_triples = negative_sampling_creator.negative_sampling(
                     list(zip(heads, relations, tails, confidences)), num_entities)
                 neg_heads, neg_relations, neg_tails = zip(*neg_triples)
-                neg_heads = torch.tensor(neg_heads, dtype=torch.long)
-                neg_relations = torch.tensor(neg_relations, dtype=torch.long)
-                neg_tails = torch.tensor(neg_tails, dtype=torch.long)
+                neg_heads = torch.tensor(neg_heads, dtype=torch.long, device=device)
+                neg_relations = torch.tensor(neg_relations, dtype=torch.long, device=device)
+                neg_tails = torch.tensor(neg_tails, dtype=torch.long, device=device)
 
                 # Compute loss and optimize
                 optimizers[name].zero_grad()
