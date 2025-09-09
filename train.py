@@ -477,7 +477,7 @@ def train_and_evaluate_neg_confidences_cosukg(file_path, dataset_models, embeddi
 
     # Final training and test evaluation, this time log to CSV
     training_loop_neg_confidences_cosukg(
-        models, full_train_loader, val_loader=val_loader, test_loader=test_loader, device=device,
+        models, full_train_loader, test_loader=test_loader, device=device,
         optimizers=optimizers,
         num_epochs=num_epochs, num_entities=num_entities,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
