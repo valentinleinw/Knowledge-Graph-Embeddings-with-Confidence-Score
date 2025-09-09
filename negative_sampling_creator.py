@@ -1,6 +1,5 @@
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-import networkx as nx
 
 
 
@@ -16,8 +15,6 @@ def negative_sampling(triples, num_entities):
             neg_triples.append((head, relation, new_tail))
     return neg_triples
     
-import numpy as np
-
 def negative_sampling_cosukg(triples, num_entities, num_samples, x1, x2):
     triples = np.array(triples, dtype=np.float32)  # shape: (n, 4)
     n_triples = triples.shape[0]
