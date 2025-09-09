@@ -15,43 +15,47 @@ def negative_sampling(triples, num_entities):
             neg_triples.append((head, relation, new_tail))
     return neg_triples
     
-def negative_sampling_cosukg(triples, num_entities, num_samples, x1, x2):
-    triples = np.array(triples, dtype=np.float32)  # shape: (n, 4)
-    n_triples = triples.shape[0]
+import torch
+
+def negative_sampling_cosukg(triples, num_entities, num_samples, x1, x2, device):
     
-    # Total number of negative samples
-    total_samples = n_triples * num_samples
-    
-    # Expand triples to repeat each num_samples times
-    expanded = np.repeat(triples, num_samples, axis=0)
-    heads, rels, tails, confs = expanded.T
-    
-    # Preallocate arrays for output
-    new_heads = heads.copy().astype(np.int32)
-    new_rels = rels.copy().astype(np.int32)
-    new_tails = tails.copy().astype(np.int32)
-    new_confs = confs.copy()
-    
-    # Case 1: confidence > x1  → new_conf ∈ (0, 1 - c]
+    triples = triples.to(device)
+    heads, rels, tails, confs = triples.T
+
+    # Expand triples (repeat each num_samples times)
+    heads = heads.repeat_interleave(num_samples)
+    rels = rels.repeat_interleave(num_samples)
+    tails = tails.repeat_interleave(num_samples)
+    confs = confs.repeat_interleave(num_samples)
+
+    # Case 1: confidence > x1 → new_conf ∈ (0, 1 - c]
     mask1 = confs > x1
-    new_confs[mask1] = np.random.uniform(0, 1 - confs[mask1])
-    
-    # Case 2: confidence < x2  → new_conf ∈ [1 - c, 1)
+    new_confs = confs.clone()
+    if mask1.any():
+        new_confs[mask1] = torch.rand(mask1.sum(), device=device) * (1 - confs[mask1])
+
+    # Case 2: confidence < x2 → new_conf ∈ [1 - c, 1)
     mask2 = confs < x2
-    new_confs[mask2] = np.random.uniform(1 - confs[mask2], 1)
-    
+    if mask2.any():
+        new_confs[mask2] = (1 - confs[mask2]) + torch.rand(mask2.sum(), device=device) * confs[mask2]
+
     # Case 3: otherwise → corrupt head or tail
     mask3 = ~(mask1 | mask2)
-    corrupt_heads = np.random.rand(mask3.sum()) > 0.5
-    
-    # Corrupt heads
-    new_heads[mask3][corrupt_heads] = np.random.randint(0, num_entities, corrupt_heads.sum())
-    # Corrupt tails
-    new_tails[mask3][~corrupt_heads] = np.random.randint(0, num_entities, (~corrupt_heads).sum())
-    
-    # Stack results back into quads
-    neg_quad = np.stack([new_heads, new_rels, new_tails, new_confs], axis=1)
+    if mask3.any():
+        corrupt_heads = torch.rand(mask3.sum(), device=device) > 0.5
+
+        # Corrupt heads
+        rand_heads = torch.randint(0, num_entities, (corrupt_heads.sum(),), device=device)
+        heads[mask3][corrupt_heads] = rand_heads
+
+        # Corrupt tails
+        rand_tails = torch.randint(0, num_entities, ((~corrupt_heads).sum(),), device=device)
+        tails[mask3][~corrupt_heads] = rand_tails
+
+    # Stack results back
+    neg_quad = torch.stack([heads, rels, tails, new_confs], dim=1)
     return neg_quad
+
 
 
 def negative_sampling_inverse(triples, num_entities, num_samples):
