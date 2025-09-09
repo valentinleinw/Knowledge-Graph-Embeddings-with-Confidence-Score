@@ -18,19 +18,25 @@ def negative_sampling(triples, num_entities):
 import torch
 
 def negative_sampling_cosukg(triples, num_entities, num_samples, x1, x2, device):
-    
-    triples = triples.to(device)
-    heads, rels, tails, confs = triples.T
 
-    # Expand triples (repeat each num_samples times)
+    # Unpack list of triples into separate tensors
+    heads, rels, tails, confs = zip(*triples)
+    heads = torch.tensor(heads, dtype=torch.long, device=device)
+    rels = torch.tensor(rels, dtype=torch.long, device=device)
+    tails = torch.tensor(tails, dtype=torch.long, device=device)
+    confs = torch.tensor(confs, dtype=torch.float, device=device)
+
+    # Repeat each triple num_samples times
     heads = heads.repeat_interleave(num_samples)
     rels = rels.repeat_interleave(num_samples)
     tails = tails.repeat_interleave(num_samples)
     confs = confs.repeat_interleave(num_samples)
 
+    # Initialize new confidences
+    new_confs = confs.clone()
+
     # Case 1: confidence > x1 → new_conf ∈ (0, 1 - c]
     mask1 = confs > x1
-    new_confs = confs.clone()
     if mask1.any():
         new_confs[mask1] = torch.rand(mask1.sum(), device=device) * (1 - confs[mask1])
 
@@ -44,17 +50,23 @@ def negative_sampling_cosukg(triples, num_entities, num_samples, x1, x2, device)
     if mask3.any():
         corrupt_heads = torch.rand(mask3.sum(), device=device) > 0.5
 
+        # Indices for corruption
+        idx_mask3 = mask3.nonzero(as_tuple=True)[0]
+
         # Corrupt heads
-        rand_heads = torch.randint(0, num_entities, (corrupt_heads.sum(),), device=device)
-        heads[mask3][corrupt_heads] = rand_heads
+        idx_heads = idx_mask3[corrupt_heads]
+        rand_heads = torch.randint(0, num_entities, (idx_heads.size(0),), device=device)
+        heads[idx_heads] = rand_heads
 
         # Corrupt tails
-        rand_tails = torch.randint(0, num_entities, ((~corrupt_heads).sum(),), device=device)
-        tails[mask3][~corrupt_heads] = rand_tails
+        idx_tails = idx_mask3[~corrupt_heads]
+        rand_tails = torch.randint(0, num_entities, (idx_tails.size(0),), device=device)
+        tails[idx_tails] = rand_tails
 
-    # Stack results back
+    # Stack results into shape (num_triples*num_samples, 4)
     neg_quad = torch.stack([heads, rels, tails, new_confs], dim=1)
     return neg_quad
+
 
 
 
