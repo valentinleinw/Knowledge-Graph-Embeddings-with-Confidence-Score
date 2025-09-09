@@ -58,31 +58,41 @@ def negative_sampling_cosukg(triples, num_entities, num_samples, x1, x2, device)
 
 
 
-def negative_sampling_inverse(triples, num_entities, num_samples):
-    triples = np.array(triples, dtype=np.float32) 
+import torch
+
+def negative_sampling_inverse(triples, num_entities, num_samples, device):
     
+    triples = triples.to(device)
+    heads, rels, tails, confs = triples.T
+
+    batch_size = triples.size(0)
+
     # Expand triples num_samples times
-    expanded = np.repeat(triples, num_samples, axis=0)
-    heads, rels, tails, confs = expanded.T
-    
-    # Preallocate outputs
-    new_heads = heads.astype(np.int32).copy()
-    new_rels = rels.astype(np.int32).copy()
-    new_tails = tails.astype(np.int32).copy()
-    new_confs = (1 - confs)  # inverse confidence (vectorized)
-    
+    heads = heads.repeat_interleave(num_samples)
+    rels = rels.repeat_interleave(num_samples)
+    tails = tails.repeat_interleave(num_samples)
+    confs = confs.repeat_interleave(num_samples)
+
+    # Inverse confidence
+    new_confs = 1.0 - confs
+
     # Decide whether to corrupt head or tail
-    corrupt_heads = np.random.rand(expanded.shape[0]) > 0.5
-    
+    corrupt_heads = torch.rand(batch_size * num_samples, device=device) > 0.5
+
     # Replace heads
-    new_heads[corrupt_heads] = np.random.randint(0, num_entities, corrupt_heads.sum())
-    
+    if corrupt_heads.any():
+        rand_heads = torch.randint(0, num_entities, (corrupt_heads.sum(),), device=device)
+        heads[corrupt_heads] = rand_heads
+
     # Replace tails
-    new_tails[~corrupt_heads] = np.random.randint(0, num_entities, (~corrupt_heads).sum())
-    
-    # Stack into output array
-    neg_quad = np.stack([new_heads, new_rels, new_tails, new_confs], axis=1)
+    if (~corrupt_heads).any():
+        rand_tails = torch.randint(0, num_entities, ((~corrupt_heads).sum(),), device=device)
+        tails[~corrupt_heads] = rand_tails
+
+    # Stack back into quads
+    neg_quad = torch.stack([heads, rels, tails, new_confs], dim=1)
     return neg_quad
+
 
 def precompute_similar_entities(entity_embeddings, top_k=10):
     similarity_matrix = cosine_similarity(entity_embeddings)
