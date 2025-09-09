@@ -57,7 +57,7 @@ def initialize(file_path, batch_size):
     val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
     
-    return dataset, num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data
+    return num_entities, num_relations, train_loader, val_loader, test_loader, train_data, val_data, test_data
 
 def training_loop(models, train_loader, val_loader, test_loader, device, optimizers, loss_function,
                   num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
