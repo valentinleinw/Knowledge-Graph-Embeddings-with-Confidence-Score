@@ -239,22 +239,18 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
                 pos_confidences = confidences.to(device, dtype=torch.float)
 
                 # Generate negative samples with confidence scores
-                neg_quad = negative_sampling_creator.negative_sampling_inverse(
-                    list(zip(heads, relations, tails, pos_confidences)), num_entities, 10, device=device
+                neg_triples, neg_confidences = negative_sampling_creator.negative_sampling_inverse(
+                    list(zip(heads, relations, tails, pos_confidences)),
+                    num_entities,
+                    num_samples=10,
+                    x1=0.8,
+                    x2=0.2,
+                    device=device
                 )
 
-                # Unzip negative samples
-                neg_heads, neg_relations, neg_tails, neg_confidences = zip(*neg_quad)
-                neg_heads = torch.tensor(neg_heads, dtype=torch.long, device=device)
-                neg_relations = torch.tensor(neg_relations, dtype=torch.long, device=device)
-                neg_tails = torch.tensor(neg_tails, dtype=torch.long, device=device)
-                neg_confidences = torch.tensor(neg_confidences, dtype=torch.float, device=device)
-
-                # Compute loss and optimize
-                optimizers[name].zero_grad()
                 pos_triples = torch.stack([heads, relations, tails], dim=1)
-                neg_triples = torch.stack([neg_heads, neg_relations, neg_tails], dim=1)
 
+                optimizers[name].zero_grad()
                 loss = model.loss_neg(pos_triples, neg_triples, pos_confidences, neg_confidences, margin)
                 loss.backward()
                 optimizers[name].step()

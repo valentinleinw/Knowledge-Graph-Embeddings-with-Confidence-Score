@@ -58,38 +58,56 @@ def negative_sampling_cosukg(triples, num_entities, num_samples, x1, x2, device)
     return neg_triples, neg_confidences
 
 
-def negative_sampling_inverse(triples, num_entities, num_samples, device):
-    
-    triples = triples.to(device)
-    heads, rels, tails, confs = triples.T
+def negative_sampling_inverse(triples, num_entities, num_samples, x1, x2, device):
 
-    batch_size = triples.size(0)
+    # Unpack list of triples into tensors
+    heads, rels, tails, confs = zip(*triples)
+    heads = torch.tensor(heads, dtype=torch.long, device=device)
+    rels = torch.tensor(rels, dtype=torch.long, device=device)
+    tails = torch.tensor(tails, dtype=torch.long, device=device)
+    confs = torch.tensor(confs, dtype=torch.float, device=device)
 
-    # Expand triples num_samples times
+    # Repeat each triple num_samples times
     heads = heads.repeat_interleave(num_samples)
     rels = rels.repeat_interleave(num_samples)
     tails = tails.repeat_interleave(num_samples)
     confs = confs.repeat_interleave(num_samples)
 
-    # Inverse confidence
-    new_confs = 1.0 - confs
+    # Initialize new confidences
+    new_confs = confs.clone()
 
-    # Decide whether to corrupt head or tail
-    corrupt_heads = torch.rand(batch_size * num_samples, device=device) > 0.5
+    # Case 1: confidence > x1 → new_conf ∈ (0, 1 - c]
+    mask1 = confs > x1
+    if mask1.any():
+        new_confs[mask1] = torch.rand(mask1.sum(), device=device) * (1 - confs[mask1])
 
-    # Replace heads
-    if corrupt_heads.any():
-        rand_heads = torch.randint(0, num_entities, (corrupt_heads.sum(),), device=device)
-        heads[corrupt_heads] = rand_heads
+    # Case 2: confidence < x2 → new_conf ∈ [1 - c, 1)
+    mask2 = confs < x2
+    if mask2.any():
+        new_confs[mask2] = (1 - confs[mask2]) + torch.rand(mask2.sum(), device=device) * confs[mask2]
 
-    # Replace tails
-    if (~corrupt_heads).any():
-        rand_tails = torch.randint(0, num_entities, ((~corrupt_heads).sum(),), device=device)
-        tails[~corrupt_heads] = rand_tails
+    # Case 3: otherwise → corrupt head or tail (inverse sampling logic)
+    mask3 = ~(mask1 | mask2)
+    if mask3.any():
+        corrupt_heads = torch.rand(mask3.sum(), device=device) > 0.5
+        idx_mask3 = mask3.nonzero(as_tuple=True)[0]
 
-    # Stack back into quads
-    neg_quad = torch.stack([heads, rels, tails, new_confs], dim=1)
-    return neg_quad
+        # Corrupt heads
+        idx_heads = idx_mask3[corrupt_heads]
+        rand_heads = torch.randint(0, num_entities, (idx_heads.size(0),), device=device)
+        heads[idx_heads] = rand_heads
+
+        # Corrupt tails
+        idx_tails = idx_mask3[~corrupt_heads]
+        rand_tails = torch.randint(0, num_entities, (idx_tails.size(0),), device=device)
+        tails[idx_tails] = rand_tails
+
+    # Return separate tensors with correct dtypes
+    neg_triples = torch.stack([heads, rels, tails], dim=1)  # LongTensor
+    neg_confidences = new_confs                             # FloatTensor
+
+    return neg_triples, neg_confidences
+
 
 
 def precompute_similar_entities(entity_embeddings, top_k=10):
