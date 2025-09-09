@@ -240,7 +240,7 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
 
                 # Generate negative samples with confidence scores
                 neg_quad = negative_sampling_creator.negative_sampling_inverse(
-                    list(zip(heads, relations, tails, pos_confidences)), num_entities, 10
+                    list(zip(heads, relations, tails, pos_confidences)), num_entities, 10, device=device
                 )
 
                 # Unzip negative samples
