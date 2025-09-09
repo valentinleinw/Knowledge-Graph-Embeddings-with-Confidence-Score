@@ -93,11 +93,12 @@ def training_loop(models, train_loader, val_loader, test_loader, optimizers, los
         for epoch in range(num_epochs):
             total_loss = 0
             for batch in train_loader:
+                                
                 heads, relations, tails, confidences = batch
-                heads = torch.tensor(heads, dtype=torch.long)
-                relations = torch.tensor(relations, dtype=torch.long)
-                tails = torch.tensor(tails, dtype=torch.long)
-                confidences = torch.tensor(confidences, dtype=torch.float)
+                heads = heads.to(device, dtype=torch.long)
+                relations = relations.to(device, dtype=torch.long)
+                tails = tails.to(device, dtype=torch.long)
+                confidences = confidences.to(device, dtype=torch.float)
 
                 # Generate negative samples
                 neg_triples = negative_sampling_creator.negative_sampling(
@@ -643,6 +644,13 @@ def train_and_evaluate(file_path, dataset_models, loss_function="loss", embeddin
     
     if embedding_dim % 2 != 0:
         raise ValueError("Embedding Dimensions have to be even")
+    
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
 
     # Combine train and val for k-fold cross-validation
     train_val_data = train_data + val_data
@@ -651,9 +659,9 @@ def train_and_evaluate(file_path, dataset_models, loss_function="loss", embeddin
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 
     models = {
-        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim),
-        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim),
-        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim),
+        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim).to(device, non_blocking=True),
+        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim).to(device, non_blocking=True),
+        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim).to(device, non_blocking=True),
     }
 
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
