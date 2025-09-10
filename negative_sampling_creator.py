@@ -112,51 +112,72 @@ def negative_sampling_inverse(triples, num_entities, num_samples, x1, x2, device
 
 def precompute_similar_entities(entity_embeddings, top_k=10):
     similarity_matrix = cosine_similarity(entity_embeddings)
-    top_similar = np.argsort(similarity_matrix, axis=1)[:, -top_k:]
-    similarity_scores = np.take_along_axis(similarity_matrix, top_similar, axis=1)
-    return top_similar, similarity_scores
+    top_similar = np.argpartition(similarity_matrix, -top_k, axis=1)[:, -top_k:]
+    # Sort only the top_k candidates
+    row_idx = np.arange(similarity_matrix.shape[0])[:, None]
+    top_scores = similarity_matrix[row_idx, top_similar]
+    sorted_idx = np.argsort(top_scores, axis=1)
+    top_similar = top_similar[row_idx, sorted_idx]
+    top_scores = top_scores[row_idx, sorted_idx]
+    return top_similar, top_scores
+
 
 def prepare_sampling_data(top_similar, similarity_scores):
-
-    n_entities, k = top_similar.shape
-
     probas = similarity_scores / similarity_scores.sum(axis=1, keepdims=True)
-
-    # build index maps (list of dicts)
-    index_maps = []
-    for i in range(n_entities):
-        index_maps.append({c: j for j, c in enumerate(top_similar[i])})
-
-    return probas, index_maps
-
-
-def weighted_choice(candidates, probabilities):
-    return np.random.choice(candidates, p=probabilities)
+    return probas
 
 
 def negative_sampling_similarity(triples, num_samples, top_similar, similarity_scores):
-    neg_quad = []
+    # Precompute probability distributions
+    probas = prepare_sampling_data(top_similar, similarity_scores)
 
-    # Precompute probas + index maps
-    probas, index_maps = prepare_sampling_data(top_similar, similarity_scores)
+    n_triples = len(triples)
 
-    for head, relation, tail, confidence in triples:
-        for _ in range(num_samples):
-            if np.random.rand() > 0.5:
-                # replace head
-                candidates = top_similar[head]
-                new_head = weighted_choice(candidates, probas[head])
-                new_tail = tail
-                similarity_score = similarity_scores[head][index_maps[head][new_head]]
-            else:
-                # replace tail
-                candidates = top_similar[tail]
-                new_tail = weighted_choice(candidates, probas[tail])
-                new_head = head
-                similarity_score = similarity_scores[tail][index_maps[tail][new_tail]]
+    # Expand triples: repeat each triple num_samples times
+    triples = np.repeat(np.array(triples), num_samples, axis=0)
 
-            new_confidence = confidence * similarity_score
-            neg_quad.append((new_head, relation, new_tail, new_confidence))
+    heads, rels, tails, confs = triples.T
+    heads = heads.astype(int)
+    rels = rels.astype(int)
+    tails = tails.astype(int)
+    confs = confs.astype(float)
+
+    # Randomly decide whether to replace head (True) or tail (False)
+    replace_head = np.random.rand(len(triples)) > 0.5
+
+    # Sample new heads
+    sampled_heads = np.array([
+        np.random.choice(top_similar[h], p=probas[h]) for h in heads[replace_head]
+    ]) if replace_head.any() else np.array([])
+
+    # Sample new tails
+    sampled_tails = np.array([
+        np.random.choice(top_similar[t], p=probas[t]) for t in tails[~replace_head]
+    ]) if (~replace_head).any() else np.array([])
+
+    # Assign replacements
+    new_heads = heads.copy()
+    new_tails = tails.copy()
+    new_heads[replace_head] = sampled_heads
+    new_tails[~replace_head] = sampled_tails
+
+    # Lookup similarity scores in one vectorized step
+    sim_scores = np.zeros(len(triples))
+    sim_scores[replace_head] = [
+        similarity_scores[h, np.where(top_similar[h] == nh)[0][0]]
+        for h, nh in zip(heads[replace_head], new_heads[replace_head])
+    ]
+    sim_scores[~replace_head] = [
+        similarity_scores[t, np.where(top_similar[t] == nt)[0][0]]
+        for t, nt in zip(tails[~replace_head], new_tails[~replace_head])
+    ]
+
+    # New confidences
+    new_confs = confs * sim_scores
+
+    # Build final neg_quad
+    neg_quad = np.stack([new_heads, rels, new_tails, new_confs], axis=1)
 
     return neg_quad
+
 
