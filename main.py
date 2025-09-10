@@ -5,24 +5,30 @@ import pandas as pd
 if __name__ == "__main__":
     
     def avg(csv_path):
-        df = pd.read_csv(csv_path)
+        # Read CSV more robustly
+        df = pd.read_csv(
+            csv_path,
+            on_bad_lines="skip",  # skip malformed rows
+            engine="python"       # slower but more forgiving parser
+        )
 
-        # Convert 'N/A' and other non-numeric entries to NaN (for averaging)
+        # Convert 'N/A' and other non-numeric entries to NaN
         df.replace("N/A", pd.NA, inplace=True)
 
         # Columns that define uniqueness of a configuration
-        group_cols = ["Model"]
+        if "Model" not in df.columns or "Function" not in df.columns:
+            raise ValueError("CSV must contain 'Model' and 'Function' columns.")
 
-        # Group by these and average the rest
+        # Group by these and average numeric columns
         df_avg = df.groupby("Model", as_index=False).agg({
             **{col: "mean" for col in df.select_dtypes(include="number").columns},
-            "Function": "first"   # keep the Function value
+            "Function": "first"   # keep one Function value
         })
 
         # Save back to the same file, overwriting the original
         df_avg.to_csv(csv_path, index=False)
     
-    """triples = [
+    triples = [
         ("datasets/paper_bounded_CoDExSmall.csv", ds.CoDExSmall(), f"results/paper_bounded_CoDExSmall_results/evaluation_results"),
         ("datasets/paper_logistic_CoDExSmall.csv", ds.CoDExSmall(), f"results/paper_logistic_CoDExSmall_results/evaluation_results"),
         ("datasets/CoDExSmall_agree___with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_agree_with_confidence_results/evaluation_results"),
@@ -81,33 +87,38 @@ if __name__ == "__main__":
         #("datasets/YAGO310_random_[0;0.5]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random_with_confidences_results/evaluation_results"),
         ("datasets/YAGO310_random_[0;1]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random1_with_confidences_results/evaluation_results"),
         #("datasets/YAGO310_random_[0.5;1]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random2_with_confidences_results/evaluation_results"),
-        ("datasets/YAGO310_ranked_appearances___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_ranked_appearances_with_confidence_results/evaluation_results")]"""
+        ("datasets/YAGO310_ranked_appearances___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_ranked_appearances_with_confidence_results/evaluation_results")]
     
     """For every dataset except the logical with distmult(?) use only the first function for evaluation, 
         so we can compare the functions themselves but also thecreation of the datasets"""
     
     #for origin, dataset, result in triples:
-    origin = "datasets/CoDExSmall_model__DistMult_with_confidence.csv"
-    dataset = ds.CoDExSmall()
-    result = "results/CoDExSmall_model_DistMult_with_confidence_results/evaluation_results"
-    for i in range(10):
-        train.train_and_evaluate(origin, dataset, "loss", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_loss.csv")
-        
-        train.train_and_evaluate(origin, dataset, "objective", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_objective.csv")
+    for origin, dataset, result in triples: 
+        for i in range(10):
+            train.train_and_evaluate(origin, dataset, "loss", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_loss.csv")
+            
+            train.train_and_evaluate(origin, dataset, "objective", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_objective.csv")
 
-        train.train_and_evaluate(origin, dataset, "divergence", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_divergence.csv")
+            train.train_and_evaluate(origin, dataset, "divergence", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_divergence.csv")
 
-        train.train_and_evaluate(origin, dataset, "gaussian", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_gaussian.csv")
+            train.train_and_evaluate(origin, dataset, "gaussian", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_gaussian.csv")
 
-        train.train_and_evaluate(origin, dataset, "softplus", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_softplus.csv")
-        
-        train.train_and_evaluate_neg_confidences_cosukg(origin, dataset, embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_cosukg.csv")
+            train.train_and_evaluate(origin, dataset, "softplus", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_softplus.csv")
+            
+            """train.train_and_evaluate_neg_confidences_cosukg(origin, dataset, embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_cosukg.csv")
 
-        train.train_and_evaluate_neg_confidences_inverse(origin, dataset, embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_inverse.csv")
+            train.train_and_evaluate_neg_confidences_inverse(origin, dataset, embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_inverse.csv")
 
-        train.train_and_evaluate_neg_confidences_similarity(origin, dataset, embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_similarity.csv")
-        
-        print("Finished iteration number " + str(i))
+            train.train_and_evaluate_neg_confidences_similarity(origin, dataset, embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_similarity.csv")"""
+            
+            print("---------------")
+            print("")
+            print("")
+            print("")
+            print("Finished iteration number " + str(i))
+            print("")
+            print("")
+            print("---------------")
 
     avg(result + "_loss.csv")
     
