@@ -4,30 +4,6 @@ import pandas as pd
 
 if __name__ == "__main__":
     
-    def avg(csv_path):
-        # Read CSV more robustly
-        df = pd.read_csv(
-            csv_path,
-            on_bad_lines="skip",  # skip malformed rows
-            engine="python"       # slower but more forgiving parser
-        )
-
-        # Convert 'N/A' and other non-numeric entries to NaN
-        df.replace("N/A", pd.NA, inplace=True)
-
-        # Columns that define uniqueness of a configuration
-        if "Model" not in df.columns or "Function" not in df.columns:
-            raise ValueError("CSV must contain 'Model' and 'Function' columns.")
-
-        # Group by these and average numeric columns
-        df_avg = df.groupby("Model", as_index=False).agg({
-            **{col: "mean" for col in df.select_dtypes(include="number").columns},
-            "Function": "first"   # keep one Function value
-        })
-
-        # Save back to the same file, overwriting the original
-        df_avg.to_csv(csv_path, index=False)
-    
     triples = [
         ("datasets/paper_bounded_CoDExSmall.csv", ds.CoDExSmall(), f"results/paper_bounded_CoDExSmall_results/evaluation_results"),
         ("datasets/paper_logistic_CoDExSmall.csv", ds.CoDExSmall(), f"results/paper_logistic_CoDExSmall_results/evaluation_results"),
@@ -119,22 +95,6 @@ if __name__ == "__main__":
             print("")
             print("")
             print("---------------")
-
-    avg(result + "_loss.csv")
-    
-    avg(result + "_objective.csv")
-    
-    avg(result + "_divergence.csv")
-    
-    avg(result + "_gaussian.csv")
-    
-    avg(result + "_softplus.csv")
-    
-    avg(result + "_cosukg.csv")
-    
-    avg(result + "_inverse.csv")
-    
-    avg(result + "_similarity.csv")
     
 print("Finished!")
     
