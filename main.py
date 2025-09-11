@@ -20,7 +20,7 @@ if __name__ == "__main__":
         #("datasets/CoDExSmall_random_[0.5;1]__with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_random2_with_confidences_results/evaluation_results"),
         ("datasets/CoDExSmall_ranked_appearances___with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_ranked_appearances_with_confidence_results/evaluation_results"),
         
-        ("datasets/paper_bounded_CoDExMedium.csv", ds.CoDExMedium(), f"results/paper_bounded_CoDExMedium_results/evaluation_results"),
+        """("datasets/paper_bounded_CoDExMedium.csv", ds.CoDExMedium(), f"results/paper_bounded_CoDExMedium_results/evaluation_results"),
         ("datasets/paper_logistic_CoDExMedium.csv", ds.CoDExMedium(), f"results/paper_logistic_CoDExMedium_results/evaluation_results"),
         ("datasets/CoDExMedium_agree___with_confidence.csv", ds.CoDExMedium(), f"results/CoDExMedium_agree_with_confidence_results/evaluation_results"),
         ("datasets/CoDExMedium_appearances___with_confidence.csv", ds.CoDExMedium(), f"results/CoDExMedium_appearances_with_confidence_results/evaluation_results"),
@@ -63,7 +63,7 @@ if __name__ == "__main__":
         #("datasets/YAGO310_random_[0;0.5]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random_with_confidences_results/evaluation_results"),
         ("datasets/YAGO310_random_[0;1]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random1_with_confidences_results/evaluation_results"),
         #("datasets/YAGO310_random_[0.5;1]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random2_with_confidences_results/evaluation_results"),
-        ("datasets/YAGO310_ranked_appearances___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_ranked_appearances_with_confidence_results/evaluation_results")]
+        ("datasets/YAGO310_ranked_appearances___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_ranked_appearances_with_confidence_results/evaluation_results")"""]
     
     """For every dataset except the logical with distmult(?) use only the first function for evaluation, 
         so we can compare the functions themselves but also thecreation of the datasets"""
