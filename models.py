@@ -18,7 +18,7 @@ class TransEUncertainty(nn.Module):
         pos_loss = torch.sum(confidence_scores * torch.clamp(
             margin + self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]) -
             self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), min=0))
-        return pos_loss
+        return torch.mean(pos_loss)
     
     
     def loss_neg(self, pos_triples, neg_triples, pos_confidence_scores, neg_confidence_scores, margin=1.0):
@@ -36,7 +36,7 @@ class TransEUncertainty(nn.Module):
         neg_loss = torch.sum(neg_confidence_scores * torch.clamp(margin + pos_scores - neg_scores, min=0)) 
 
         total_loss = pos_loss + neg_loss
-        return total_loss
+        return torch.mean(total_loss)
         
     def objective_function(self, pos_triples, neg_triples, confidence_scores):
 
