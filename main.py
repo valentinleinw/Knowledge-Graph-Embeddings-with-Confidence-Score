@@ -18,7 +18,7 @@ if __name__ == "__main__":
         #("datasets/CoDExSmall_model__DistMult_with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_model_DistMult_with_confidence_results/evaluation_results1"),
         #("datasets/CoDExSmall_model__TransE_with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_model_TransE_with_confidence_results/evaluation_results"),
         #("datasets/CoDExSmall_random_[0;0.5]__with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_random_with_confidences_results/evaluation_results"),
-        ("datasets/CoDExSmall_random_[0;1]__with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_random1_with_confidences_results/evaluation_results1"),
+        ("datasets/CoDExSmall_random_[0;1]__with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_random1_with_confidences_results/evaluation_results2"),
         #("datasets/CoDExSmall_random_[0.5;1]__with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_random2_with_confidences_results/evaluation_results"),
         #("datasets/CoDExSmall_ranked_appearances___with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_ranked_appearances_with_confidence_results/evaluation_results1"),
         
