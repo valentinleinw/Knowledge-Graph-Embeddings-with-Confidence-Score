@@ -7,36 +7,36 @@ if __name__ == "__main__":
     triples = [
         
         
-        ("datasets/paper_bounded_YAGO310.csv", ds.YAGO310(), f"results/paper_bounded_YAGO310_results/evaluation_results"),
-        ("datasets/paper_logistic_YAGO310.csv", ds.YAGO310(), f"results/paper_logistic_YAGO310_results/evaluation_results"),
-        ("datasets/YAGO310_agree___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_agree_with_confidence_results/evaluation_results"),
-        ("datasets/YAGO310_appearances___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_appearances_with_confidence_results/evaluation_results"),
+        #("datasets/paper_bounded_YAGO310.csv", ds.YAGO310(), f"results/paper_bounded_YAGO310_results/evaluation_results"),
+        #("datasets/paper_logistic_YAGO310.csv", ds.YAGO310(), f"results/paper_logistic_YAGO310_results/evaluation_results"),
+        #("datasets/YAGO310_agree___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_agree_with_confidence_results/evaluation_results"),
+        #("datasets/YAGO310_appearances___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_appearances_with_confidence_results/evaluation_results"),
         #("datasets/YAGO310_average___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_average_with_confidence_results/evaluation_results"),
         #("datasets/YAGO310_logical___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_logical_with_confidence_results/evaluation_results"),
-        ("datasets/YAGO310_logical_with_distmult___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_logical_with_distmult_with_confidence_results/evaluation_results"),
+        #("datasets/YAGO310_logical_with_distmult___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_logical_with_distmult_with_confidence_results/evaluation_results"),
         #("datasets/YAGO310_model__ComplEx_with_confidence.csv", ds.YAGO310(), f"results/YAGO310_model_ComplEx_with_confidence_results/evaluation_results"),
-        ("datasets/YAGO310_model__DistMult_with_confidence.csv", ds.YAGO310(), f"results/YAGO310_model_DistMult_with_confidence_results/evaluation_results"),
+        #("datasets/YAGO310_model__DistMult_with_confidence.csv", ds.YAGO310(), f"results/YAGO310_model_DistMult_with_confidence_results/evaluation_results"),
         #("datasets/YAGO310_model__TransE_with_confidence.csv", ds.YAGO310(), f"results/YAGO310_model_TransE_with_confidence_results/evaluation_results"),
         #("datasets/YAGO310_random_[0;0.5]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random_with_confidences_results/evaluation_results"),
-        ("datasets/YAGO310_random_[0;1]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random1_with_confidences_results/evaluation_results"),
+        #("datasets/YAGO310_random_[0;1]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random1_with_confidences_results/evaluation_results"),
         #("datasets/YAGO310_random_[0.5;1]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random2_with_confidences_results/evaluation_results"),
-        ("datasets/YAGO310_ranked_appearances___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_ranked_appearances_with_confidence_results/evaluation_results"),
+        #("datasets/YAGO310_ranked_appearances___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_ranked_appearances_with_confidence_results/evaluation_results"),
     
         
-        #("datasets/paper_bounded_CoDExSmall.csv", ds.CoDExSmall(), f"results/paper_bounded_CoDExSmall_results/evaluation_results1"),
-        #("datasets/paper_logistic_CoDExSmall.csv", ds.CoDExSmall(), f"results/paper_logistic_CoDExSmall_results/evaluation_results1"),
-        #("datasets/CoDExSmall_agree___with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_agree_with_confidence_results/evaluation_results1"),
-        #("datasets/CoDExSmall_appearances___with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_appearances_with_confidence_results/evaluation_results1"),
+        ("datasets/paper_bounded_CoDExSmall.csv", ds.CoDExSmall(), f"results/paper_bounded_CoDExSmall_results/evaluation_results1"),
+        ("datasets/paper_logistic_CoDExSmall.csv", ds.CoDExSmall(), f"results/paper_logistic_CoDExSmall_results/evaluation_results1"),
+        ("datasets/CoDExSmall_agree___with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_agree_with_confidence_results/evaluation_results1"),
+        ("datasets/CoDExSmall_appearances___with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_appearances_with_confidence_results/evaluation_results1"),
         #("datasets/CoDExSmall_average___with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_average_with_confidence_results/evaluation_results"),
         #("datasets/CoDExSmall_logical___with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_logical_with_confidence_results/evaluation_results"),
-        #("datasets/CoDExSmall_logical_with_distmult___with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_logical_with_distmult_with_confidence_results/evaluation_results1"),
+        ("datasets/CoDExSmall_logical_with_distmult___with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_logical_with_distmult_with_confidence_results/evaluation_results1"),
         #("datasets/CoDExSmall_model__ComplEx_with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_model_ComplEx_with_confidence_results/evaluation_results"),
-        #("datasets/CoDExSmall_model__DistMult_with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_model_DistMult_with_confidence_results/evaluation_results1"),
+        ("datasets/CoDExSmall_model__DistMult_with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_model_DistMult_with_confidence_results/evaluation_results1"),
         #("datasets/CoDExSmall_model__TransE_with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_model_TransE_with_confidence_results/evaluation_results"),
         #("datasets/CoDExSmall_random_[0;0.5]__with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_random_with_confidences_results/evaluation_results"),
-        #("datasets/CoDExSmall_random_[0;1]__with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_random1_with_confidences_results/evaluation_results3"),
+        ("datasets/CoDExSmall_random_[0;1]__with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_random1_with_confidences_results/evaluation_results3"),
         #("datasets/CoDExSmall_random_[0.5;1]__with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_random2_with_confidences_results/evaluation_results"),
-        #("datasets/CoDExSmall_ranked_appearances___with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_ranked_appearances_with_confidence_results/evaluation_results1"),
+        ("datasets/CoDExSmall_ranked_appearances___with_confidence.csv", ds.CoDExSmall(), f"results/CoDExSmall_ranked_appearances_with_confidence_results/evaluation_results1"),
         
         #("datasets/paper_bounded_CoDExMedium.csv", ds.CoDExMedium(), f"results/paper_bounded_CoDExMedium_results/evaluation_results"),
         #("datasets/paper_logistic_CoDExMedium.csv", ds.CoDExMedium(), f"results/paper_logistic_CoDExMedium_results/evaluation_results"),
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     #dataset = ds.CoDExLarge()
     #result =  "results/CoDExLarge_model_DistMult_with_confidence_results/evaluation_results"
         for i in range(10):
-            train.train_and_evaluate(origin, dataset, "loss", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_loss.csv")
+            train.train_and_evaluate(origin, dataset, "loss", embedding_dim=200, batch_size=2048, num_epochs=1000, result_file=result + "_loss.csv")
             
             #train.train_and_evaluate(origin, dataset, "objective", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_objective.csv")
 
