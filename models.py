@@ -91,8 +91,8 @@ class DistMultUncertainty(nn.Module):
     def loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
         pos_score = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         neg_score = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
-        pos_loss = confidence_scores * torch.clamp(margin + pos_score - neg_score, min=0)
-        return torch.mean(pos_loss.sum())
+        pos_loss = confidence_scores * F.relu(margin + pos_score - neg_score)
+        return torch.mean(pos_loss)
     
     def loss_neg(self, pos_triples, neg_triples, pos_confidence_scores, neg_confidence_scores, margin=1.0):
         # Get scores (higher = better), so we negate them to make them similar to distance (lower = better)
@@ -103,10 +103,9 @@ class DistMultUncertainty(nn.Module):
         pos_scores = pos_scores.repeat_interleave(num_neg_samples)
         pos_confidence_scores = pos_confidence_scores.repeat_interleave(num_neg_samples)
 
-        pos_loss = torch.sum(pos_confidence_scores * torch.clamp(margin + pos_scores - neg_scores, min=0))
-        neg_loss = torch.sum(neg_confidence_scores * torch.clamp(margin + pos_scores - neg_scores, min=0))
-
-        return torch.mean(pos_loss + neg_loss)
+        loss = pos_confidence_scores * F.relu(margin + pos_scores - neg_scores) \
+                + neg_confidence_scores * F.relu(margin + pos_scores - neg_scores)
+        return torch.mean(loss)
   
     def objective_function(self, pos_triples, neg_triples, confidence_scores):
         pos_scores = torch.sigmoid(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]))
