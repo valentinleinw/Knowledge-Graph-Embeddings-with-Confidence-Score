@@ -63,7 +63,8 @@ if __name__ == "__main__":
         #("datasets/CoDExLarge_random_[0;0.5]__with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_random_with_confidences_results/evaluation_results"),
         ("datasets/CoDExLarge_random_[0;1]__with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_random1_with_confidences_results/evaluation_results"),
         #("datasets/CoDExLarge_random_[0.5;1]__with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_random2_with_confidences_results/evaluation_results"),
-        #("datasets/CoDExLarge_ranked_appearances___with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_ranked_appearances_with_confidence_results/evaluation_results"),]
+        #("datasets/CoDExLarge_ranked_appearances___with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_ranked_appearances_with_confidence_results/evaluation_results"),
+        ]
         
     """For every dataset except the logical with distmult(?) use only the first function for evaluation, 
         so we can compare the functions themselves but also thecreation of the datasets"""
