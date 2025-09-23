@@ -73,13 +73,13 @@ if __name__ == "__main__":
     #dataset = ds.CoDExLarge()
     #result =  "results/CoDExLarge_model_DistMult_with_confidence_results/evaluation_results"
         for i in range(10):
-            train.train_and_evaluate(origin, dataset, "loss", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_loss.csv")
+            #train.train_and_evaluate(origin, dataset, "loss", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_loss.csv")
             
-            train.train_and_evaluate(origin, dataset, "objective", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_objective.csv")
+            #train.train_and_evaluate(origin, dataset, "objective", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_objective.csv")
 
-            #train.train_and_evaluate(origin, dataset, "divergence", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_divergence.csv")
+            train.train_and_evaluate(origin, dataset, "divergence", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_divergence.csv")
 
-            #train.train_and_evaluate(origin, dataset, "gaussian", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_gaussian.csv")
+            train.train_and_evaluate(origin, dataset, "gaussian", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_gaussian.csv")
 
             #train.train_and_evaluate(origin, dataset, "softplus", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_softplus.csv")
             
