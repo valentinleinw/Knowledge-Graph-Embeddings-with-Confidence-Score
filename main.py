@@ -18,7 +18,7 @@ if __name__ == "__main__":
         #("datasets/YAGO310_model__DistMult_with_confidence.csv", ds.YAGO310(), f"results/YAGO310_model_DistMult_with_confidence_results/evaluation_results"),
         #("datasets/YAGO310_model__TransE_with_confidence.csv", ds.YAGO310(), f"results/YAGO310_model_TransE_with_confidence_results/evaluation_results"),
         #("datasets/YAGO310_random_[0;0.5]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random_with_confidences_results/evaluation_results"),
-        #("datasets/YAGO310_random_[0;1]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random1_with_confidences_results/evaluation_results"),
+        ("datasets/YAGO310_random_[0;1]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random1_with_confidences_results/evaluation_results"),
         #("datasets/YAGO310_random_[0.5;1]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random2_with_confidences_results/evaluation_results"),
         #("datasets/YAGO310_ranked_appearances___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_ranked_appearances_with_confidence_results/evaluation_results"),
     
@@ -45,7 +45,7 @@ if __name__ == "__main__":
         #("datasets/CoDExMedium_logical_with_distmult___with_confidence.csv", ds.CoDExMedium(), f"results/CoDExMedium_logical_with_distmult_with_confidence_results/evaluation_results4"),
         #("datasets/CoDExMedium_model__DistMult_with_confidence.csv", ds.CoDExMedium(), f"results/CoDExMedium_model_DistMult_with_confidence_results/evaluation_results4"),
         #("datasets/CoDExMedium_random_[0;0.5]__with_confidence.csv", ds.CoDExMedium(), f"results/CoDExMedium_random_with_confidences_results/evaluation_results4"),
-        ("datasets/CoDExMedium_random_[0;1]__with_confidence.csv", ds.CoDExMedium(), f"results/CoDExMedium_random1_with_confidences_results/evaluation_results4"),
+        #("datasets/CoDExMedium_random_[0;1]__with_confidence.csv", ds.CoDExMedium(), f"results/CoDExMedium_random1_with_confidences_results/evaluation_results4"),
         #("datasets/CoDExMedium_random_[0.5;1]__with_confidence.csv", ds.CoDExMedium(), f"results/CoDExMedium_random2_with_confidences_results/evaluation_results4"),
         #("datasets/CoDExMedium_ranked_appearances___with_confidence.csv", ds.CoDExMedium(), f"results/CoDExMedium_ranked_appearances_with_confidence_results/evaluation_results4"),
         
@@ -77,17 +77,17 @@ if __name__ == "__main__":
             
             train.train_and_evaluate(origin, dataset, "objective", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_objective.csv")
 
-            train.train_and_evaluate(origin, dataset, "divergence", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_divergence.csv")
+            #train.train_and_evaluate(origin, dataset, "divergence", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_divergence.csv")
 
-            train.train_and_evaluate(origin, dataset, "gaussian", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_gaussian.csv")
+            #train.train_and_evaluate(origin, dataset, "gaussian", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_gaussian.csv")
 
-            train.train_and_evaluate(origin, dataset, "softplus", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_softplus.csv")
+            #train.train_and_evaluate(origin, dataset, "softplus", embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_softplus.csv")
             
-            train.train_and_evaluate_neg_confidences_cosukg(origin, dataset, embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_cosukg.csv")
+            #train.train_and_evaluate_neg_confidences_cosukg(origin, dataset, embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_cosukg.csv")
 
-            train.train_and_evaluate_neg_confidences_inverse(origin, dataset, embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_inverse.csv")
+            #train.train_and_evaluate_neg_confidences_inverse(origin, dataset, embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_inverse.csv")
 
-            train.train_and_evaluate_neg_confidences_similarity(origin, dataset, embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_similarity.csv")
+            #train.train_and_evaluate_neg_confidences_similarity(origin, dataset, embedding_dim=100, batch_size=1024, num_epochs=500, result_file=result + "_similarity.csv")
             
             print("---------------")
             print("")
