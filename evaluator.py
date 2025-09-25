@@ -3,7 +3,7 @@ import numpy as np
 
 
 def evaluate(model, test_loader, device='cpu', top_k=10, entity_batch_size=5000):
-    model.eval() 
+    model.eval()
 
     ranks = []
     hits_at_1 = 0
@@ -24,12 +24,12 @@ def evaluate(model, test_loader, device='cpu', top_k=10, entity_batch_size=5000)
             confidences = confidences.to(device, dtype=torch.float32)
 
             # Compute embeddings for the current batch
-            head_embeddings = entity_embeddings[heads]  # (batch_size, embedding_dim)
+            head_embeddings = entity_embeddings[heads]                # (batch_size, embedding_dim)
             relation_embeddings_batch = relation_embeddings[relations]  # (batch_size, embedding_dim)
 
-            # Expand batch dims for broadcasting
+            # Combine head + relation
             head_plus_rel = head_embeddings + relation_embeddings_batch  # (batch_size, embedding_dim)
-            head_plus_rel = head_plus_rel.unsqueeze(1)  # (batch_size, 1, embedding_dim)
+            head_plus_rel = head_plus_rel.unsqueeze(1)                   # (batch_size, 1, embedding_dim)
 
             # Collect scores in chunks
             all_scores = []
@@ -38,23 +38,27 @@ def evaluate(model, test_loader, device='cpu', top_k=10, entity_batch_size=5000)
                 ent_emb_chunk = entity_embeddings[start:end]  # (chunk, embedding_dim)
                 ent_emb_chunk = ent_emb_chunk.unsqueeze(0)    # (1, chunk, embedding_dim)
 
-                # Compute distance for this chunk
+                # Compute L1 distance
                 scores = torch.norm(head_plus_rel - ent_emb_chunk, p=1, dim=2)  # (batch_size, chunk)
                 all_scores.append(scores)
 
             # Concatenate scores across all entity chunks
             all_scores = torch.cat(all_scores, dim=1)  # (batch_size, num_entities)
 
-            # Rank computation
+            # Rank computation (without full sort)
             for i in range(len(tails)):
-                sorted_indices = torch.argsort(all_scores[i], descending=False)
-                rank = (sorted_indices == tails[i]).nonzero(as_tuple=True)[0].item() + 1
-                ranks.append((rank, confidences[i]))
+                tail_idx = tails[i].item()
+                tail_score = all_scores[i, tail_idx]
+
+                # Rank = number of entities with score <= true tail score
+                rank = (all_scores[i] <= tail_score).sum().item()
+
+                ranks.append((rank, confidences[i].item()))
 
                 hits_at_1 += (rank == 1)
                 hits_at_5 += (rank <= 5)
 
-    # Convert ranks to numpy for faster operations
+    # Convert ranks to numpy for metrics
     ranks = np.array(ranks, dtype=np.float32)
     mean_rank = np.mean(ranks[:, 0])
     mrr = np.mean(1.0 / ranks[:, 0])
