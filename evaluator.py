@@ -2,7 +2,7 @@ import torch
 import numpy as np
 
 
-def evaluate(model, test_loader, device='cpu', top_k=10):
+def evaluate(model, test_loader, device='cpu', top_k=10, entity_batch_size=5000):
     model.eval() 
 
     ranks = []
@@ -10,30 +10,45 @@ def evaluate(model, test_loader, device='cpu', top_k=10):
     hits_at_5 = 0
 
     # Get all entity and relation embeddings
-    entity_embeddings = model.entity_embeddings.weight.to(device)
+    entity_embeddings = model.entity_embeddings.weight.to(device)  # (num_entities, embedding_dim)
     relation_embeddings = model.relation_embeddings.weight.to(device)
+
+    num_entities = entity_embeddings.size(0)
 
     with torch.no_grad():  # Disable gradient calculation
         for batch in test_loader:
             heads, relations, tails, confidences = batch
-            heads.to(device, dtype=torch.long),
-            relations.to(device, dtype=torch.long),
-            tails.to(device, dtype=torch.long),
-            confidences.to(device, dtype=torch.float32)
+            heads = heads.to(device, dtype=torch.long)
+            relations = relations.to(device, dtype=torch.long)
+            tails = tails.to(device, dtype=torch.long)
+            confidences = confidences.to(device, dtype=torch.float32)
 
             # Compute embeddings for the current batch
             head_embeddings = entity_embeddings[heads]  # (batch_size, embedding_dim)
             relation_embeddings_batch = relation_embeddings[relations]  # (batch_size, embedding_dim)
 
-            # Compute scores for all entities (full set of entities)
-            # Broadcasting head_embeddings and relation_embeddings_batch over all entities
-            all_scores = torch.norm(
-                head_embeddings.unsqueeze(1) + relation_embeddings_batch.unsqueeze(1) - entity_embeddings, p=1, dim=2
-            ) 
+            # Expand batch dims for broadcasting
+            head_plus_rel = head_embeddings + relation_embeddings_batch  # (batch_size, embedding_dim)
+            head_plus_rel = head_plus_rel.unsqueeze(1)  # (batch_size, 1, embedding_dim)
 
-            # Get the rank of the correct tail entity for each instance in the batch
+            # Collect scores in chunks
+            all_scores = []
+            for start in range(0, num_entities, entity_batch_size):
+                end = start + entity_batch_size
+                ent_emb_chunk = entity_embeddings[start:end]  # (chunk, embedding_dim)
+                ent_emb_chunk = ent_emb_chunk.unsqueeze(0)    # (1, chunk, embedding_dim)
+
+                # Compute distance for this chunk
+                scores = torch.norm(head_plus_rel - ent_emb_chunk, p=1, dim=2)  # (batch_size, chunk)
+                all_scores.append(scores)
+
+            # Concatenate scores across all entity chunks
+            all_scores = torch.cat(all_scores, dim=1)  # (batch_size, num_entities)
+
+            # Rank computation
             for i in range(len(tails)):
-                rank = (torch.argsort(all_scores[i], descending=False) == tails[i]).nonzero(as_tuple=True)[0].item() + 1
+                sorted_indices = torch.argsort(all_scores[i], descending=False)
+                rank = (sorted_indices == tails[i]).nonzero(as_tuple=True)[0].item() + 1
                 ranks.append((rank, confidences[i]))
 
                 hits_at_1 += (rank == 1)
