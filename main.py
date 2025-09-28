@@ -15,12 +15,12 @@ if __name__ == "__main__":
         #("datasets/YAGO310_logical___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_logical_with_confidence_results/evaluation_results"),
         #("datasets/YAGO310_logical_with_distmult___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_logical_with_distmult_with_confidence_results/evaluation_results"),
         #("datasets/YAGO310_model__ComplEx_with_confidence.csv", ds.YAGO310(), f"results/YAGO310_model_ComplEx_with_confidence_results/evaluation_results"),
-        ("datasets/YAGO310_model__DistMult_with_confidence.csv", ds.YAGO310(), f"results/YAGO310_model_DistMult_with_confidence_results/evaluation_results"),
+        #("datasets/YAGO310_model__DistMult_with_confidence.csv", ds.YAGO310(), f"results/YAGO310_model_DistMult_with_confidence_results/evaluation_results"),
         #("datasets/YAGO310_model__TransE_with_confidence.csv", ds.YAGO310(), f"results/YAGO310_model_TransE_with_confidence_results/evaluation_results"),
         #("datasets/YAGO310_random_[0;0.5]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random_with_confidences_results/evaluation_results"),
         #("datasets/YAGO310_random_[0;1]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random1_with_confidences_results/evaluation_results2"),
         #("datasets/YAGO310_random_[0.5;1]__with_confidence.csv", ds.YAGO310(), f"results/YAGO310_random2_with_confidences_results/evaluation_results"),
-        ("datasets/YAGO310_ranked_appearances___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_ranked_appearances_with_confidence_results/evaluation_results"),
+        #("datasets/YAGO310_ranked_appearances___with_confidence.csv", ds.YAGO310(), f"results/YAGO310_ranked_appearances_with_confidence_results/evaluation_results"),
     
         
         #("datasets/paper_bounded_CoDExSmall.csv", ds.CoDExSmall(), f"results/paper_bounded_CoDExSmall_results/evaluation_results4"),
@@ -56,14 +56,14 @@ if __name__ == "__main__":
         #("datasets/CoDExLarge_appearances___with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_appearances_with_confidence_results/evaluation_results"),
         #("datasets/CoDExLarge_average___with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_average_with_confidence_results/evaluation_results"),
         #("datasets/CoDExLarge_logical___with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_logical_with_confidence_results/evaluation_results"),
-        #("datasets/CoDExLarge_logical_with_distmult___with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_logical_with_distmult_with_confidence_results/evaluation_results"),
+        ("datasets/CoDExLarge_logical_with_distmult___with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_logical_with_distmult_with_confidence_results/evaluation_results2"),
         #("datasets/CoDExLarge_model__ComplEx_with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_model_ComplEx_with_confidence_results/evaluation_results"),
-        #("datasets/CoDExLarge_model__DistMult_with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_model_DistMult_with_confidence_results/evaluation_results"),
+        ("datasets/CoDExLarge_model__DistMult_with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_model_DistMult_with_confidence_results/evaluation_results2"),
         #("datasets/CoDExLarge_model__TransE_with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_model_TransE_with_confidence_results/evaluation_results"),
         #("datasets/CoDExLarge_random_[0;0.5]__with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_random_with_confidences_results/evaluation_results"),
         #("datasets/CoDExLarge_random_[0;1]__with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_random1_with_confidences_results/evaluation_results"),
         #("datasets/CoDExLarge_random_[0.5;1]__with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_random2_with_confidences_results/evaluation_results"),
-        #("datasets/CoDExLarge_ranked_appearances___with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_ranked_appearances_with_confidence_results/evaluation_results"),
+        ("datasets/CoDExLarge_ranked_appearances___with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_ranked_appearances_with_confidence_results/evaluation_results2"),
         ]
         
     """For every dataset except the logical with distmult(?) use only the first function for evaluation, 
