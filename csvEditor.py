@@ -32,7 +32,6 @@ class csvEditor():
             fieldnames = ["Model", "Dataset", "Function", "Epochs", "Embedding Dims", "Batch Size", "Margin", "Loss", "Mean Rank", "MRR", "Hits@1", "Hits@5", "Hits@10"]
             writer = csv.DictWriter(file, fieldnames=fieldnames)
 
-            # Write the header only if the file doesn't already exist
             if not file_exists:
                 writer.writeheader()
 

@@ -103,8 +103,8 @@ def negative_sampling_inverse(triples, num_entities, num_samples, x1, x2, device
         tails[idx_tails] = rand_tails
 
     # Return separate tensors with correct dtypes
-    neg_triples = torch.stack([heads, rels, tails], dim=1)  # LongTensor
-    neg_confidences = new_confs                             # FloatTensor
+    neg_triples = torch.stack([heads, rels, tails], dim=1)  
+    neg_confidences = new_confs                            
 
     return neg_triples, neg_confidences
 
@@ -122,7 +122,7 @@ def precompute_similar_entities(entity_embeddings, top_k=10):
     return top_similar, top_scores
 
 
-def prepare_sampling_data(top_similar, similarity_scores):
+def prepare_sampling_data(similarity_scores):
     probas = similarity_scores / similarity_scores.sum(axis=1, keepdims=True)
     return probas
 
@@ -130,8 +130,6 @@ def prepare_sampling_data(top_similar, similarity_scores):
 def negative_sampling_similarity(triples, num_samples, top_similar, similarity_scores):
     # Precompute probability distributions
     probas = prepare_sampling_data(top_similar, similarity_scores)
-
-    n_triples = len(triples)
 
     # Expand triples: repeat each triple num_samples times
     triples = np.repeat(np.array(triples), num_samples, axis=0)

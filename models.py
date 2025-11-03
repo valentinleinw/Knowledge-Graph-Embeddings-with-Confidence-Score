@@ -20,7 +20,7 @@ class TransEUncertainty(nn.Module):
             self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), min=0))
         return torch.mean(pos_loss)
     
-    
+    # TransE scoring function changed to Loss Function by using confidence scores and including negative confidence scores
     def loss_neg(self, pos_triples, neg_triples, pos_confidence_scores, neg_confidence_scores, margin=1.0):
 
         # Compute positive and negative scores
@@ -95,7 +95,6 @@ class DistMultUncertainty(nn.Module):
         return torch.mean(pos_loss)
     
     def loss_neg(self, pos_triples, neg_triples, pos_confidence_scores, neg_confidence_scores, margin=1.0):
-        # Get scores (higher = better), so we negate them to make them similar to distance (lower = better)
         pos_scores = -self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         neg_scores = -self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
 

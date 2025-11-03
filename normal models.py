@@ -8,18 +8,15 @@ from torch.optim import Adam
 from pykeen.evaluation import LCWAEvaluationLoop
 from pykeen.models import TransE, DistMult, ComplEx
 
-# Set devices
 device_mps = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
 device_cpu = torch.device("cpu")
 
-# Models and devices
 all_results = []
 num_epochs = 500
 batch_size = 1024
 
 
-# Load dataset
-dataset = CoDExMedium()
+dataset = CoDExSmall()
 
 training = dataset.training
 validation = dataset.validation
@@ -87,7 +84,6 @@ for model_name,model in models.items():
         "Hits@10": hits_at_10
     })
 
-# Save to CSV
 df = pd.DataFrame(all_results)
 df.to_csv("codexsmall_results.csv", index=False)
 print("Results saved to codexsmall_results.csv")

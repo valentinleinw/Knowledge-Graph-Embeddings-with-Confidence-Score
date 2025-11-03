@@ -49,8 +49,8 @@ def initialize(file_path, batch_size):
     num_entities = len(dataset.entities)
     num_relations = len(dataset.relations)
     
-    train_data, temp_data = train_test_split(dataset, test_size=0.2, random_state=42)  # 80% train, 20% test+val
-    val_data, test_data = train_test_split(temp_data, test_size=0.5, random_state=42)  # Split temp into 50% validation, 50% test
+    train_data, temp_data = train_test_split(dataset, test_size=0.2, random_state=42)  
+    val_data, test_data = train_test_split(temp_data, test_size=0.5, random_state=42)  
         
     # Create DataLoader
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
@@ -98,7 +98,7 @@ def training_loop(models, train_loader, val_loader, test_loader, device, optimiz
                     list(zip(heads, relations, tails, confidences)), num_entities)
                 neg_heads, neg_relations, neg_tails = zip(*neg_triples)"""
                 neg_heads = torch.randint(0, num_entities, heads.size(), device=device)
-                neg_relations = relations.clone()  # usually keep same relation
+                neg_relations = relations.clone()
                 neg_tails = torch.randint(0, num_entities, tails.size(), device=device)
 
                 # Compute loss and optimize
@@ -206,14 +206,14 @@ def training_loop_neg_confidences_cosukg(models, train_loader, test_loader, devi
             
         if test_loader is not None:
             print(f"\nEvaluating {name} on test set...")
-            if isinstance(model, ComplExUncertainty):  # Check if the model is ComplEx
+            if isinstance(model, ComplExUncertainty):
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader, device)
             else:
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader, device)
             
             print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
             
-            # Log results to CSV
+     
             csvEditor.write_results_to_csv(result_file, "train_and_evaluate_neg_confidences_cosukg", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
 
 def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test_loader, device, optimizers,
@@ -277,16 +277,16 @@ def training_loop_neg_confidences_inverse(models, train_loader, val_loader, test
 
         loss_model = avg_train_loss
     
+        # evaluate the results
         if test_loader is not None:
             print(f"\nEvaluating {name} on test set...")
-            if isinstance(model, ComplExUncertainty):  # Check if the model is ComplEx
+            if isinstance(model, ComplExUncertainty): 
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate_complex(model, test_loader, device)
             else:
                 mean_rank, mrr, hits_at_10, hits_at_1, hits_at_5 = evaluator.evaluate(model, test_loader, device)
             
             print(f"{name} Results - Mean Rank: {mean_rank}, MRR: {mrr}, Hits@1: {hits_at_1}, Hits@5: {hits_at_5}, Hits@10: {hits_at_10}")
             
-            # Log results to CSV
             csvEditor.write_results_to_csv(result_file, "train_and_evaluate_neg_confidences_inverse", name, mean_rank, mrr, hits_at_1, hits_at_5, hits_at_10, file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)
 
 def training_loop_neg_confidences_similarity(models, train_loader, val_loader, test_loader, device, optimizers, 
@@ -317,7 +317,6 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
                 else:
                     entity_embeddings = model.entity_embeddings.weight.detach()
 
-                # Move to CPU for sklearn
                 entity_embeddings_cpu = entity_embeddings.cpu().numpy()
 
                 # Compute top similar entities using sklearn
@@ -343,13 +342,11 @@ def training_loop_neg_confidences_similarity(models, train_loader, val_loader, t
                 idx_heads = torch.multinomial(prob_heads, num_samples=1).squeeze()
                 new_heads = cand_heads[torch.arange(len(heads), device=device), idx_heads]
 
-                # Replace tails
                 cand_tails = top_similar[tails]
                 prob_tails = similarity_scores[tails]
                 idx_tails = torch.multinomial(prob_tails, num_samples=1).squeeze()
                 new_tails = cand_tails[torch.arange(len(tails), device=device), idx_tails]
 
-                # Apply mask
                 neg_heads = torch.where(replace_mask, new_heads, heads)
                 neg_tails = torch.where(replace_mask, tails, new_tails)
 
