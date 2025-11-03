@@ -122,7 +122,7 @@ def precompute_similar_entities(entity_embeddings, top_k=10):
     return top_similar, top_scores
 
 
-def prepare_sampling_data(similarity_scores):
+def prepare_sampling_data(top_similar, similarity_scores):
     probas = similarity_scores / similarity_scores.sum(axis=1, keepdims=True)
     return probas
 
