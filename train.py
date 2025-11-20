@@ -660,7 +660,7 @@ def train_and_evaluate(file_path, dataset_models, loss_function="loss", embeddin
 
     #train_and_evaluate_normal_models(dataset_models, "train_and_evaluate" + "_" + loss_function, embedding_dim=embedding_dim, batch_size=batch_size, num_epochs=num_epochs, result_file=result_file)
     
-def train_and_evaluate_mae(file_path, loss_function="loss", embedding_dim=50, batch_size=64, 
+def train_and_evaluate_mae(file_path, embedding_dim=50, batch_size=64, 
                                 num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
                                 patience = 10, delta=1e-4):
     
@@ -693,27 +693,16 @@ def train_and_evaluate_mae(file_path, loss_function="loss", embedding_dim=50, ba
 
     training_loop_mae(
         models, full_train_loader, test_loader=test_loader, device=device,
-        optimizers=optimizers, loss_function=loss_function,
-        num_epochs=num_epochs, num_entities=num_entities,
+        optimizers=optimizers,
+        num_epochs=num_epochs,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
         file_path=file_path, result_file=result_file, patience=patience, delta=delta
     )
     
-def training_loop_mae(models, train_loader, test_loader, device, optimizers, loss_function,
-                  num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
+def training_loop_mae(models, train_loader, test_loader, device, optimizers,
+                  num_epochs, embedding_dim, batch_size, margin, file_path, result_file,
                   patience=10, delta=1e-4):
-    
-    # Pre-select loss function (avoid per-batch if/else)
-    loss_fn_map = {
-        "loss": lambda model, pos, neg, conf: model.loss(pos, neg, conf, margin),
-        "objective": lambda model, pos, neg, conf: model.objective_function(pos, neg, conf),
-        "softplus": lambda model, pos, neg, conf: model.softplus_loss(pos, neg, conf),
-        "gaussian": lambda model, pos, _, conf: model.gaussian_nll_loss(pos, conf),
-        "contrastive": lambda model, pos, neg, conf: model.contrastive_loss(pos, neg, margin, conf),
-        "divergence": lambda model, pos, _, conf: model.kl_divergence_loss(pos, conf),
-    }
-    selected_loss = loss_fn_map[loss_function]
-    
+   
     # Training Loop with validation and early stopping
     for name, model in models.items():
         print(f"\nTraining {name}...")

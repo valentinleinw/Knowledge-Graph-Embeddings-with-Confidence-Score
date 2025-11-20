@@ -4,7 +4,7 @@ import pandas as pd
 
 if __name__ == "__main__":
     
-    train.train_and_evaluate_mae("datasets/CoDExSmall_random_[0;1]__with_confidence.csv", "gaussian", 50, 64, 50, 1.0, "results/mae_test.csv")
+    train.train_and_evaluate_mae("datasets/CoDExSmall_random_[0;1]__with_confidence.csv", 50, 64, 50, 1.0, "results/mae_test.csv")
     
     """
     
