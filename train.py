@@ -659,3 +659,119 @@ def train_and_evaluate(file_path, dataset_models, loss_function="loss", embeddin
     )
 
     #train_and_evaluate_normal_models(dataset_models, "train_and_evaluate" + "_" + loss_function, embedding_dim=embedding_dim, batch_size=batch_size, num_epochs=num_epochs, result_file=result_file)
+    
+def train_and_evaluate_mae(file_path, loss_function="loss", embedding_dim=50, batch_size=64, 
+                                num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
+                                patience = 10, delta=1e-4):
+    
+    num_entities, num_relations, _, val_loader, _, train_data, val_data, test_data = initialize(file_path, batch_size)
+
+    
+    if embedding_dim % 2 != 0:
+        raise ValueError("Embedding Dimensions have to be even")
+    
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+
+    # Combine train and val for k-fold cross-validation
+    train_val_data = train_data + val_data
+
+    full_train_loader = DataLoader(train_val_data, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
+
+    models = {
+        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim).to(device, non_blocking=True),
+        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim).to(device, non_blocking=True),
+        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim).to(device, non_blocking=True),
+    }
+
+    optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
+
+    training_loop_mae(
+        models, full_train_loader, test_loader=test_loader, device=device,
+        optimizers=optimizers, loss_function=loss_function,
+        num_epochs=num_epochs, num_entities=num_entities,
+        embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
+        file_path=file_path, result_file=result_file, patience=patience, delta=delta
+    )
+    
+def training_loop_mae(models, train_loader, test_loader, device, optimizers, loss_function,
+                  num_epochs, num_entities, embedding_dim, batch_size, margin, file_path, result_file,
+                  patience=10, delta=1e-4):
+    
+    # Pre-select loss function (avoid per-batch if/else)
+    loss_fn_map = {
+        "loss": lambda model, pos, neg, conf: model.loss(pos, neg, conf, margin),
+        "objective": lambda model, pos, neg, conf: model.objective_function(pos, neg, conf),
+        "softplus": lambda model, pos, neg, conf: model.softplus_loss(pos, neg, conf),
+        "gaussian": lambda model, pos, _, conf: model.gaussian_nll_loss(pos, conf),
+        "contrastive": lambda model, pos, neg, conf: model.contrastive_loss(pos, neg, margin, conf),
+        "divergence": lambda model, pos, _, conf: model.kl_divergence_loss(pos, conf),
+    }
+    selected_loss = loss_fn_map[loss_function]
+    
+    # Training Loop with validation and early stopping
+    for name, model in models.items():
+        print(f"\nTraining {name}...")
+        loss_model = 0
+        best_loss = float('inf')
+        epochs_no_improve = 0 
+        best_model_state = None
+
+
+        model.train()  # Set model to training mode
+        for epoch in range(num_epochs):
+            total_loss = 0
+            for batch in train_loader:
+                heads, relations, tails, confidences = batch
+                heads = heads.to(device)
+                relations = relations.to(device)
+                tails = tails.to(device)
+                confidences = confidences.to(device, dtype=torch.float32)
+
+                # Forward pass
+                pred = model(heads, relations, tails)
+
+                # Regression loss (MAE)
+                loss = model.loss(pred, confidences)
+
+                # Optimize
+                optimizers[name].zero_grad()
+                loss.backward()
+                optimizers[name].step()
+
+                total_loss += loss.item()
+
+            avg_train_loss = total_loss / len(train_loader)
+            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {avg_train_loss:.4f}")
+            
+            if avg_train_loss < best_loss - delta:
+                best_loss = avg_train_loss
+                epochs_no_improve = 0
+                best_model_state = model.state_dict()
+            else:
+                epochs_no_improve += 1
+                print(f"No improvement for {epochs_no_improve} epoch(s).")
+                if epochs_no_improve >= patience:
+                    print(f"Early stopping triggered at epoch {epoch+1}")
+                    model.load_state_dict(best_model_state)
+                    break
+
+            
+        print(f"\nEvaluating {name} on test set...")
+        if test_loader is not None:
+            model.eval()
+            
+            print(f"\nEvaluating {name} using MAE...")
+            mae = evaluator.evaluate_mae(model, test_loader, device)
+            print(f"{name} MAE: {mae:.4f}")
+
+                
+            function_name = "train_and_evaluate" + "_" + loss_function
+
+            csvEditor.write_results_to_csv_mae(result_file, function_name, name, mae,
+                                           file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)

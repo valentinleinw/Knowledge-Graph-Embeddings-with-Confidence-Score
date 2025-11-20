@@ -4,6 +4,10 @@ import pandas as pd
 
 if __name__ == "__main__":
     
+    train.train_and_evaluate_mae("datasets/CoDExSmall_random_[0;1]__with_confidence.csv", "gaussian", 50, 64, 50, 1.0, "results/mae_test.csv")
+    
+    """
+    
     triples = [
         
         
@@ -66,8 +70,8 @@ if __name__ == "__main__":
         #("datasets/CoDExLarge_ranked_appearances___with_confidence.csv", ds.CoDExLarge(), f"results/CoDExLarge_ranked_appearances_with_confidence_results/evaluation_results2"),
         ]
         
-    """For every dataset except the logical with distmult(?) use only the first function for evaluation, 
-        so we can compare the functions themselves but also thecreation of the datasets"""
+    For every dataset except the logical with distmult(?) use only the first function for evaluation, 
+        so we can compare the functions themselves but also thecreation of the datasets
     
     for origin, dataset, result in triples:
     #origin = "datasets/CoDExLarge_model__DistMult_with_confidence.csv"
@@ -101,4 +105,4 @@ if __name__ == "__main__":
     
 print("Finished!!")
     
-    
+    """

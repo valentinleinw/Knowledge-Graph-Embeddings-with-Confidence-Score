@@ -149,3 +149,17 @@ def evaluate_complex(model, test_loader, device='cpu', top_k=10, entity_batch_si
     hits_at_5 /= len(ranks)
 
     return mean_rank, mrr, hits_at_k, hits_at_1, hits_at_5
+
+@torch.no_grad()
+def evaluate_mae(model, data_loader, device):
+    model.eval()
+    mae_sum = 0.0
+    n = 0
+    for batch in data_loader:
+        h, r, t, conf = batch
+        h, r, t, conf = h.to(device), r.to(device), t.to(device), conf.to(device, dtype=torch.float32)
+        pred = model(h, r, t)
+        mae_sum += torch.sum(torch.abs(pred - conf)).item()
+        n += conf.size(0)
+    return mae_sum / n
+

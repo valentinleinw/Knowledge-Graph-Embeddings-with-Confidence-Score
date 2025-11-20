@@ -51,6 +51,35 @@ class csvEditor():
                 "Hits@5": hits_at_5,
                 "Hits@10": hits_at_k,
             })
+     
+    @staticmethod
+    def write_results_to_csv_mae(file_name, function_name, model_name, mae, dataset_file, loss, epochs, embDims, batchSize, margin):
+        
+        
+        
+        # Check if the file exists to write headers only once
+        file_exists = os.path.exists(file_name)
+
+        # Open the file in append mode ('a') to add new rows instead of overwriting
+        with open(file_name, mode="a", newline="") as file:
+            fieldnames = ["Model", "Dataset", "Function", "Epochs", "Embedding Dims", "Batch Size", "Margin", "Loss", "MAE"]
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+
+            if not file_exists:
+                writer.writeheader()
+
+            # Write the results for the given model
+            writer.writerow({
+                "Model": model_name,
+                "Dataset": dataset_file,
+                "Function": function_name,
+                "Epochs": epochs,
+                "Embedding Dims": embDims,
+                "Batch Size": batchSize,
+                "Margin": margin,
+                "Loss": loss,
+                "MAE": mae,
+            })
             
     @staticmethod
     def save_to_csv_paper(dataset, confidence_scores, triples, approach):

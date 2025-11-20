@@ -6,19 +6,29 @@ import torch.nn.functional as F
 class TransEUncertainty(nn.Module):
     def __init__(self, num_entities, num_relations, embedding_dim):
         super(TransEUncertainty, self).__init__()
+        self.embedding_dim = embedding_dim
         self.entity_embeddings = nn.Embedding(num_entities, embedding_dim)
         self.relation_embeddings = nn.Embedding(num_relations, embedding_dim)
     
     # normal TransE scoring function
     def forward(self, h, r, t):
-        return torch.norm(self.entity_embeddings(h) + self.relation_embeddings(r) - self.entity_embeddings(t), p=1, dim=1)
+        distance = torch.norm(
+        self.entity_embeddings(h) + self.relation_embeddings(r) - self.entity_embeddings(t),
+        p=1, dim=1
+    )
+        scaled = distance / self.embedding_dim
+        return torch.sigmoid(-scaled)  
     
     # TransE scoring function changed to Loss Function by using confidence scores
-    def loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
+    """def loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
         pos_loss = torch.sum(confidence_scores * torch.clamp(
             margin + self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]) -
             self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), min=0))
         return torch.mean(pos_loss)
+    """
+    def loss(self, pred, conf):
+        return torch.mean(torch.abs(pred - conf))  # MAE loss
+
     
     # TransE scoring function changed to Loss Function by using confidence scores and including negative confidence scores
     def loss_neg(self, pos_triples, neg_triples, pos_confidence_scores, neg_confidence_scores, margin=1.0):
@@ -76,24 +86,48 @@ class TransEUncertainty(nn.Module):
         target_probs = F.softmax(-confidence_scores, dim=0)
         return F.kl_div(pos_probs.log(), target_probs, reduction='batchmean')
    
+import torch
+import torch.nn as nn
+
 class DistMultUncertainty(nn.Module):
     def __init__(self, num_entities, num_relations, embedding_dim):
         super(DistMultUncertainty, self).__init__()
+        self.embedding_dim = embedding_dim
         self.entity_embeddings = nn.Embedding(num_entities, embedding_dim)
         self.relation_embeddings = nn.Embedding(num_relations, embedding_dim)
-    
-    def forward(self, h, r, t):
-        head_embedding = self.entity_embeddings(h)
-        relation_embedding = self.relation_embeddings(r)
-        tail_embedding = self.entity_embeddings(t)
-        return torch.sum(head_embedding * relation_embedding * tail_embedding, dim=1)
 
+        # Regression head to map raw DistMult score → confidence
+        self.regressor = nn.Sequential(
+            nn.Linear(1, 32),
+            nn.ReLU(),
+            nn.Linear(32, 1),
+            nn.Sigmoid()  # Output in [0,1]
+        )
+
+    def forward(self, h, r, t):
+        h_emb = self.entity_embeddings(h)
+        r_emb = self.relation_embeddings(r)
+        t_emb = self.entity_embeddings(t)
+
+        # Original DistMult score (scalar per triple)
+        score = torch.sum(h_emb * r_emb * t_emb, dim=1, keepdim=True)  # Shape [batch,1]
+
+        # Predict confidence
+        score = score / self.embedding_dim  # now roughly in [-1,1]
+        conf_pred = self.regressor(score)
+        return conf_pred.squeeze(1)  # Shape [batch]
+
+    # MAE loss
+    def loss(self, pred, conf):
+        return torch.mean(torch.abs(pred - conf))
+
+    """
     def loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
         pos_score = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         neg_score = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
         pos_loss = confidence_scores * F.relu(margin + pos_score - neg_score)
         return torch.mean(pos_loss)
-    
+    """ 
     def loss_neg(self, pos_triples, neg_triples, pos_confidence_scores, neg_confidence_scores, margin=1.0):
         pos_scores = -self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         neg_scores = -self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
@@ -141,31 +175,74 @@ class DistMultUncertainty(nn.Module):
 
         return F.kl_div(p.log(), q, reduction='batchmean')
     
+import torch
+import torch.nn as nn
+
 class ComplExUncertainty(nn.Module):
     def __init__(self, num_entities, num_relations, embedding_dim):
-        super(ComplExUncertainty, self).__init__()
+        super().__init__()
+        self.embedding_dim = embedding_dim
+
+        # Embeddings
         self.entity_re_embeddings = nn.Embedding(num_entities, embedding_dim)
         self.entity_im_embeddings = nn.Embedding(num_entities, embedding_dim)
         self.relation_re_embeddings = nn.Embedding(num_relations, embedding_dim)
         self.relation_im_embeddings = nn.Embedding(num_relations, embedding_dim)
 
-    def forward(self, h, r, t):
-        head_real, head_imag = self.entity_re_embeddings(h), self.entity_im_embeddings(h)
-        relation_real, relation_imag = self.relation_re_embeddings(r), self.relation_im_embeddings(r)
-        tail_real, tail_imag = self.entity_re_embeddings(t), self.entity_im_embeddings(t)
-
-        return torch.sum(
-            head_real * relation_real * tail_real + head_imag * relation_real * tail_imag + head_real * relation_imag * tail_imag - head_imag * relation_imag * tail_real,
-            dim=1
+        # Regression head
+        self.regressor = nn.Sequential(
+            nn.Linear(6 * embedding_dim + 1, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1)
         )
 
+        # Small initial alpha
+        self.alpha = nn.Parameter(torch.tensor(0.1))
+
+        # ---- Initialization ----
+        for emb in [self.entity_re_embeddings, self.entity_im_embeddings,
+                    self.relation_re_embeddings, self.relation_im_embeddings]:
+            nn.init.xavier_uniform_(emb.weight, gain=0.5)
+
+        for m in self.regressor.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight, gain=1.0)
+                nn.init.zeros_(m.bias)
+
+    def forward(self, h, r, t):
+        h_re, h_im = self.entity_re_embeddings(h), self.entity_im_embeddings(h)
+        r_re, r_im = self.relation_re_embeddings(r), self.relation_im_embeddings(r)
+        t_re, t_im = self.entity_re_embeddings(t), self.entity_im_embeddings(t)
+
+        # ComplEx raw score
+        score = torch.sum(
+            h_re * r_re * t_re + h_im * r_re * t_im + h_re * r_im * t_im - h_im * r_im * t_re,
+            dim=1,
+            keepdim=True
+        )
+
+        # Scale and clamp raw score
+        score_scaled = torch.clamp(self.alpha * score / self.embedding_dim, -10, 10)
+
+        # Concatenate embeddings + score
+        x = torch.cat([h_re, h_im, r_re, r_im, t_re, t_im, score_scaled], dim=1)
+
+        # Predict confidence, clamp to [0,1]
+        conf_pred = torch.clamp(self.regressor(x), 0.0, 1.0)
+        return conf_pred.squeeze(1)
+
+    def loss(self, pred, conf):
+        conf = conf.clamp(0.05, 0.95)
+        return torch.mean(torch.abs(pred - conf))
+
+    """
     def loss(self, pos_triples, neg_triples, confidence_scores, margin=1.0):
         pos_score = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         neg_score = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
 
         loss = confidence_scores * F.relu(margin + neg_score - pos_score)
         return loss.mean()
-
+"""
     
     def loss_neg(self, pos_triples, neg_triples, pos_confidence_scores, neg_confidence_scores, margin=1.0):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
