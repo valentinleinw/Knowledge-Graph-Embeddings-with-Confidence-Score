@@ -726,7 +726,7 @@ def training_loop_mae(models, train_loader, test_loader, device, optimizers,
                 pred = model(heads, relations, tails)
 
                 # Regression loss (MAE)
-                loss = model.loss(pred, confidences)
+                loss = model.gaussian_nll_loss(heads,relations,tails, confidences)
 
                 # Optimize
                 optimizers[name].zero_grad()
@@ -760,7 +760,7 @@ def training_loop_mae(models, train_loader, test_loader, device, optimizers,
             print(f"{name} MAE: {mae:.4f}")
 
                 
-            function_name = "train_and_evaluate" + "_" + loss_function
+            #function_name = "train_and_evaluate" + "_" + loss_function
 
-            csvEditor.write_results_to_csv_mae(result_file, function_name, name, mae,
+            csvEditor.write_results_to_csv_mae(result_file, "test_mae", name, mae,
                                            file_path, loss_model, num_epochs, embedding_dim, batch_size, margin)

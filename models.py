@@ -1,6 +1,7 @@
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
+import math
 
 
 class TransEUncertainty(nn.Module):
@@ -73,10 +74,11 @@ class TransEUncertainty(nn.Module):
         loss_neg = torch.mean(F.softplus(-neg_scores))
         return loss_pos + loss_neg
     
-    def gaussian_nll_loss(self, pos_triples, confidence_scores):
+    def gaussian_nll_loss(self, pred, confidence_scores):
 
-        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
-        loss = torch.mean(0.5 *  torch.log(confidence_scores + 1e-8) + (pos_scores - confidence_scores) ** 2 / (2 * confidence_scores + 1e-8))
+        sigma2 = (F.softplus(pred) + 1/(2 * math.pi))** 2
+        #pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+        loss = torch.mean(0.5 *  torch.log(sigma2) + (pred - confidence_scores) ** 2 / (2 * sigma2))
         return loss
     
     def kl_divergence_loss(self, pos_triples, confidence_scores):
@@ -92,30 +94,20 @@ import torch.nn as nn
 class DistMultUncertainty(nn.Module):
     def __init__(self, num_entities, num_relations, embedding_dim):
         super(DistMultUncertainty, self).__init__()
-        self.embedding_dim = embedding_dim
         self.entity_embeddings = nn.Embedding(num_entities, embedding_dim)
         self.relation_embeddings = nn.Embedding(num_relations, embedding_dim)
+        
+        self.relation_log_sigma2 = nn.Embedding(num_relations, 1)
 
-        # Regression head to map raw DistMult score → confidence
-        self.regressor = nn.Sequential(
-            nn.Linear(1, 32),
-            nn.ReLU(),
-            nn.Linear(32, 1),
-            nn.Sigmoid()  # Output in [0,1]
-        )
+        # Minimum variance to guarantee NLL ≥ 0
+        self.sigma2_min = 1.0 / (2 * math.pi)
 
+    
     def forward(self, h, r, t):
-        h_emb = self.entity_embeddings(h)
-        r_emb = self.relation_embeddings(r)
-        t_emb = self.entity_embeddings(t)
-
-        # Original DistMult score (scalar per triple)
-        score = torch.sum(h_emb * r_emb * t_emb, dim=1, keepdim=True)  # Shape [batch,1]
-
-        # Predict confidence
-        score = score / self.embedding_dim  # now roughly in [-1,1]
-        conf_pred = self.regressor(score)
-        return conf_pred.squeeze(1)  # Shape [batch]
+        head_embedding = self.entity_embeddings(h)
+        relation_embedding = self.relation_embeddings(r)
+        tail_embedding = self.entity_embeddings(t)
+        return torch.sum(head_embedding * relation_embedding * tail_embedding, dim=1)
 
     # MAE loss
     def loss(self, pred, conf):
@@ -161,11 +153,17 @@ class DistMultUncertainty(nn.Module):
 
         return pos_loss + neg_loss
 
-    def gaussian_nll_loss(self, pos_triples, confidence_scores):
+    def gaussian_nll_loss(self, h, r, t, confidence_scores):
         
-        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+        pred = self.forward(h,r,t)
+        
+        log_sigma2_raw = self.relation_log_sigma2(r).squeeze()
+
+        # sigma^2 = softplus(raw) + sigma2_min
+        sigma2 = F.softplus(log_sigma2_raw) + self.sigma2_min
+        #pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
                 
-        return torch.mean(0.5 * torch.log(confidence_scores + 1e-8) +((pos_scores - confidence_scores) ** 2) / (2 * confidence_scores + 1e-8))
+        return torch.mean(0.5 * torch.log(2 * math.pi * sigma2) +((pred - confidence_scores) ** 2) / (sigma2))
 
     def kl_divergence_loss(self, pos_triples, confidence_scores):
         pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
@@ -190,46 +188,21 @@ class ComplExUncertainty(nn.Module):
         self.relation_im_embeddings = nn.Embedding(num_relations, embedding_dim)
 
         # Regression head
-        self.regressor = nn.Sequential(
-            nn.Linear(6 * embedding_dim + 1, 128),
-            nn.ReLU(),
-            nn.Linear(128, 1)
-        )
+        self.relation_log_sigma2 = nn.Embedding(num_relations, 1)
 
-        # Small initial alpha
-        self.alpha = nn.Parameter(torch.tensor(0.1))
+        # minimum variance to ensure NLL >= 0
+        self.sigma2_min = 1.0 / (2 * math.pi)
 
-        # ---- Initialization ----
-        for emb in [self.entity_re_embeddings, self.entity_im_embeddings,
-                    self.relation_re_embeddings, self.relation_im_embeddings]:
-            nn.init.xavier_uniform_(emb.weight, gain=0.5)
-
-        for m in self.regressor.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight, gain=1.0)
-                nn.init.zeros_(m.bias)
 
     def forward(self, h, r, t):
-        h_re, h_im = self.entity_re_embeddings(h), self.entity_im_embeddings(h)
-        r_re, r_im = self.relation_re_embeddings(r), self.relation_im_embeddings(r)
-        t_re, t_im = self.entity_re_embeddings(t), self.entity_im_embeddings(t)
+        head_real, head_imag = self.entity_re_embeddings(h), self.entity_im_embeddings(h)
+        relation_real, relation_imag = self.relation_re_embeddings(r), self.relation_im_embeddings(r)
+        tail_real, tail_imag = self.entity_re_embeddings(t), self.entity_im_embeddings(t)
 
-        # ComplEx raw score
-        score = torch.sum(
-            h_re * r_re * t_re + h_im * r_re * t_im + h_re * r_im * t_im - h_im * r_im * t_re,
-            dim=1,
-            keepdim=True
-        )
-
-        # Scale and clamp raw score
-        score_scaled = torch.clamp(self.alpha * score / self.embedding_dim, -10, 10)
-
-        # Concatenate embeddings + score
-        x = torch.cat([h_re, h_im, r_re, r_im, t_re, t_im, score_scaled], dim=1)
-
-        # Predict confidence, clamp to [0,1]
-        conf_pred = torch.clamp(self.regressor(x), 0.0, 1.0)
-        return conf_pred.squeeze(1)
+        return torch.sigmoid(torch.sum(
+            head_real * relation_real * tail_real + head_imag * relation_real * tail_imag + head_real * relation_imag * tail_imag - head_imag * relation_imag * tail_real,
+            dim=1
+        ))
 
     def loss(self, pred, conf):
         conf = conf.clamp(0.05, 0.95)
@@ -277,10 +250,18 @@ class ComplExUncertainty(nn.Module):
 
         return pos_loss + neg_loss
     
-    def gaussian_nll_loss(self, pos_triples, confidence_scores):
-        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+    def gaussian_nll_loss(self, h,r,t, confidence_scores):
+        #pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
 
-        loss = 0.5 * ((pos_scores - confidence_scores) ** 2 / (2 * confidence_scores + 1e-8) + torch.log(confidence_scores + 1e-8))
+        pred = self.forward(h, r, t)  # ComplEx real score
+
+        # predicted log σ² for each relation
+        log_sigma2_raw = self.relation_log_sigma2(r).squeeze(-1)
+
+        # enforce σ² >= sigma2_min to avoid negative NLL
+        sigma2 = F.softplus(log_sigma2_raw) + self.sigma2_min
+
+        loss = 0.5 * ((pred - confidence_scores) ** 2 / (sigma2) + torch.log(2 * math.pi * sigma2))
 
         return loss.mean()
     
