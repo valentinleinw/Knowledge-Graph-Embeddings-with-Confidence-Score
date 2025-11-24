@@ -78,12 +78,12 @@ class TransEUncertainty(nn.Module):
         loss = torch.mean(0.5 *  torch.log(sigma2) + (pred - confidence_scores) ** 2 / (2 * sigma2))
         return loss
     
-    def kl_divergence_loss(self, pos_triples, confidence_scores):
-        
-        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
-        pos_probs = F.softmax(-pos_scores, dim=0)
-        target_probs = F.softmax(-confidence_scores, dim=0)
-        return F.kl_div(pos_probs.log(), target_probs, reduction='batchmean')
+    def kl_divergence_loss(self, pos_pred, confidence_scores):
+
+        p = F.softmax(pos_pred, dim=0)
+        q = F.softmax(confidence_scores, dim=0)
+
+        return F.kl_div(p.log(), q, reduction='batchmean')
    
 import torch
 import torch.nn as nn
@@ -160,10 +160,9 @@ class DistMultUncertainty(nn.Module):
                 
         return torch.mean(0.5 * torch.log(2 * math.pi * sigma2) +((pred - confidence_scores) ** 2) / (sigma2))
 
-    def kl_divergence_loss(self, pos_triples, confidence_scores):
-        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
+    def kl_divergence_loss(self, pos_pred, confidence_scores):
 
-        p = F.softmax(pos_scores, dim=0)
+        p = F.softmax(pos_pred, dim=0)
         q = F.softmax(confidence_scores, dim=0)
 
         return F.kl_div(p.log(), q, reduction='batchmean')
@@ -259,10 +258,10 @@ class ComplExUncertainty(nn.Module):
         return loss.mean()
     
     
-    def kl_divergence_loss(self, pos_triples, confidence_scores):
-        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
-        
-        p = F.softmax(pos_scores + 1e-8, dim=0)  # Model’s predicted distribution
-        q = F.softmax(confidence_scores, dim=0)  # Confidence score as target
+    def kl_divergence_loss(self, pos_pred, confidence_scores):
 
-        return F.kl_div(p.log(), q, reduction="batchmean")
+        p = F.softmax(pos_pred, dim=0)
+        q = F.softmax(confidence_scores, dim=0)
+
+        return F.kl_div(p.log(), q, reduction='batchmean')
+    
