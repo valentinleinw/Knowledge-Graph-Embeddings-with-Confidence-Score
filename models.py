@@ -64,14 +64,11 @@ class TransEUncertainty(nn.Module):
         # Total objective function
         return loss_pos + loss_neg
     
-    def softplus_loss(self, pos_triples, neg_triples, confidence_scores):
-        
-        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
-        neg_scores = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
+    def softplus_loss(self, pos_pred, confidence_scores, neg_pred):
         
         
-        loss_pos = torch.mean(confidence_scores * F.softplus(pos_scores))
-        loss_neg = torch.mean(F.softplus(-neg_scores))
+        loss_pos = torch.mean(confidence_scores * F.softplus(pos_pred))
+        loss_neg = torch.mean(F.softplus(-neg_pred))
         return loss_pos + loss_neg
     
     def gaussian_nll_loss(self, pred, confidence_scores):
@@ -144,12 +141,10 @@ class DistMultUncertainty(nn.Module):
 
         return loss_pos + loss_neg
     
-    def softplus_loss(self, pos_triples, neg_triples, confidence_scores):
-        pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
-        neg_scores = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
-
-        pos_loss = torch.mean(-confidence_scores * F.logsigmoid(pos_scores))
-        neg_loss = torch.mean(-F.logsigmoid(-neg_scores))
+    def softplus_loss(self, pos_pred, confidence_scores, neg_pred):
+        
+        pos_loss = torch.mean(-confidence_scores * F.logsigmoid(pos_pred))
+        neg_loss = torch.mean(-F.logsigmoid(-neg_pred))
 
         return pos_loss + neg_loss
 
@@ -241,12 +236,10 @@ class ComplExUncertainty(nn.Module):
 
         return loss_pos + loss_neg
     
-    def softplus_loss(self, pos_triples, neg_triples, confidence_scores):
-        pos_score = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
-        neg_score = self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2])
-
-        pos_loss = torch.mean(-confidence_scores * F.logsigmoid(pos_score + 1e-8))
-        neg_loss = torch.mean(-F.logsigmoid(-neg_score - 1e-8))
+    def softplus_loss(self, pos_pred, confidence_scores, neg_pred):
+        
+        pos_loss = torch.mean(-confidence_scores * F.logsigmoid(pos_pred))
+        neg_loss = torch.mean(-F.logsigmoid(-neg_pred))
 
         return pos_loss + neg_loss
     

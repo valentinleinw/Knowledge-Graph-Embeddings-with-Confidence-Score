@@ -15,6 +15,22 @@ def negative_sampling(triples, num_entities):
             new_tail = np.random.randint(num_entities)
             neg_triples.append((head, relation, new_tail))
     return neg_triples
+
+def negative_sampling_better(heads, relations, tails, num_entities, device):
+    batch_size = heads.size(0)
+
+    # Random new heads and tails
+    rand_heads = torch.randint(0, num_entities, (batch_size,), device=device)
+    rand_tails = torch.randint(0, num_entities, (batch_size,), device=device)
+
+    # Decide which to corrupt
+    mask = torch.rand(batch_size, device=device) > 0.5
+
+    # Apply corruption
+    neg_heads = torch.where(mask, rand_heads, heads)
+    neg_tails = torch.where(mask, tails, rand_tails)
+
+    return neg_heads, relations, neg_tails
     
 def negative_sampling_cosukg(triples, num_entities, num_samples, x1, x2, device):
     heads, rels, tails, confs = zip(*triples)
