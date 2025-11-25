@@ -685,8 +685,8 @@ def train_and_evaluate_mae(file_path, embedding_dim=50, batch_size=64,
 
     models = {
         #"TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim).to(device, non_blocking=True),
-        #"DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim).to(device, non_blocking=True),
-        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim).to(device, non_blocking=True),
+        "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim).to(device, non_blocking=True),
+        #"ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim).to(device, non_blocking=True),
     }
 
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
@@ -729,7 +729,7 @@ def training_loop_mae(models, train_loader, test_loader, device, optimizers, num
                 neg_pred = model(neg_heads, neg_relations, neg_tails)
 
                 # Regression loss (MAE)
-                loss = model.kl_divergence_loss(pred,confidences)
+                loss = model.softplus_loss(pred, neg_pred, confidences)
 
                 # Optimize
                 optimizers[name].zero_grad()

@@ -49,23 +49,18 @@ class TransEUncertainty(nn.Module):
         total_loss = pos_loss + neg_loss
         return torch.mean(total_loss)
         
-    def objective_function(self, pos_triples, neg_triples, confidence_scores):
-
-        # Compute the scores for positive and negative triples
-        pos_scores = torch.sigmoid(-self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]))
-        neg_scores = torch.sigmoid(-self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]))
+    def objective_function(self, pos_pred, neg_pred, confidence_scores):
 
         # First term: MSE loss for positive triples (f(l) - s_l)^2
-        loss_pos = torch.mean((pos_scores - confidence_scores) ** 2)
+        loss_pos = torch.mean((pos_pred - confidence_scores) ** 2)
 
         margin = 0.5
-        loss_neg = torch.mean(F.relu(neg_scores - margin) ** 2)
+        loss_neg = torch.mean(F.relu(neg_pred - margin) ** 2)
 
         # Total objective function
         return loss_pos + loss_neg
     
-    def softplus_loss(self, pos_pred, confidence_scores, neg_pred):
-        
+    def softplus_loss(self, pos_pred, neg_pred, confidence_scores):
         
         loss_pos = torch.mean(confidence_scores * F.softplus(pos_pred))
         loss_neg = torch.mean(F.softplus(-neg_pred))
@@ -85,8 +80,6 @@ class TransEUncertainty(nn.Module):
 
         return F.kl_div(p.log(), q, reduction='batchmean')
    
-import torch
-import torch.nn as nn
 
 class DistMultUncertainty(nn.Module):
     def __init__(self, num_entities, num_relations, embedding_dim):
@@ -104,7 +97,7 @@ class DistMultUncertainty(nn.Module):
         head_embedding = self.entity_embeddings(h)
         relation_embedding = self.relation_embeddings(r)
         tail_embedding = self.entity_embeddings(t)
-        return torch.sum(head_embedding * relation_embedding * tail_embedding, dim=1)
+        return torch.sigmoid(torch.sum(head_embedding * relation_embedding * tail_embedding, dim=1))
 
     # MAE loss
     def loss(self, pred, conf):
@@ -129,19 +122,19 @@ class DistMultUncertainty(nn.Module):
                 + neg_confidence_scores * F.relu(margin + pos_scores - neg_scores)
         return torch.mean(loss)
   
-    def objective_function(self, pos_triples, neg_triples, confidence_scores):
-        pos_scores = torch.sigmoid(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]))
-        neg_scores = torch.sigmoid(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]))
+    def objective_function(self, pos_pred, neg_pred, confidence_scores):
 
-        
-        loss_pos = torch.mean((pos_scores - confidence_scores) ** 2)
-        
+        # First term: MSE loss for positive triples (f(l) - s_l)^2
+        loss_pos = torch.mean((pos_pred - confidence_scores) ** 2)
+
         margin = 0.5
-        loss_neg = torch.mean(F.relu(neg_scores - margin) ** 2)
+        loss_neg = torch.mean(F.relu(neg_pred - margin) ** 2)
 
+        # Total objective function
         return loss_pos + loss_neg
+
     
-    def softplus_loss(self, pos_pred, confidence_scores, neg_pred):
+    def softplus_loss(self, pos_pred, neg_pred, confidence_scores):
         
         pos_loss = torch.mean(-confidence_scores * F.logsigmoid(pos_pred))
         neg_loss = torch.mean(-F.logsigmoid(-neg_pred))
@@ -167,8 +160,6 @@ class DistMultUncertainty(nn.Module):
 
         return F.kl_div(p.log(), q, reduction='batchmean')
     
-import torch
-import torch.nn as nn
 
 class ComplExUncertainty(nn.Module):
     def __init__(self, num_entities, num_relations, embedding_dim):
@@ -223,19 +214,19 @@ class ComplExUncertainty(nn.Module):
         neg_loss = neg_confidence_scores * F.relu(margin + neg_scores - pos_scores)
         return (pos_loss.mean() + neg_loss.mean())
     
-    def objective_function(self, pos_triples, neg_triples, confidence_scores):
-        pos_scores = torch.sigmoid(self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2]))
-        neg_scores = torch.sigmoid(self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]))
+    def objective_function(self, pos_pred, neg_pred, confidence_scores):
 
-        # Loss on positive triples (weighted MSE)
-        loss_pos = torch.mean((pos_scores - confidence_scores) ** 2)
+        # First term: MSE loss for positive triples (f(l) - s_l)^2
+        loss_pos = torch.mean((pos_pred - confidence_scores) ** 2)
 
         margin = 0.5
-        loss_neg = torch.mean((neg_scores - margin) ** 2)
+        loss_neg = torch.mean(F.relu(neg_pred - margin) ** 2)
 
+        # Total objective function
         return loss_pos + loss_neg
+
     
-    def softplus_loss(self, pos_pred, confidence_scores, neg_pred):
+    def softplus_loss(self, pos_pred, neg_pred, confidence_scores):
         
         pos_loss = torch.mean(-confidence_scores * F.logsigmoid(pos_pred))
         neg_loss = torch.mean(-F.logsigmoid(-neg_pred))
