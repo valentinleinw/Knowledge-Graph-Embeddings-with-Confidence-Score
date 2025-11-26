@@ -65,11 +65,10 @@ def training_loop(models, train_loader, val_loader, test_loader, device, optimiz
     
     # Pre-select loss function (avoid per-batch if/else)
     loss_fn_map = {
-        "loss": lambda model, pos, neg, conf: model.loss(pos, neg, conf, margin),
+        "loss": lambda model, pos, neg, conf: model.loss(pos, neg, conf),
         "objective": lambda model, pos, neg, conf: model.objective_function(pos, neg, conf),
         "softplus": lambda model, pos, neg, conf: model.softplus_loss(pos, neg, conf),
         "gaussian": lambda model, pos, _, conf: model.gaussian_nll_loss(pos, conf),
-        "contrastive": lambda model, pos, neg, conf: model.contrastive_loss(pos, neg, margin, conf),
         "divergence": lambda model, pos, _, conf: model.kl_divergence_loss(pos, conf),
     }
     selected_loss = loss_fn_map[loss_function]
