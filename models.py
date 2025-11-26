@@ -27,7 +27,7 @@ class TransEUncertainty(nn.Module):
             self(neg_triples[:, 0], neg_triples[:, 1], neg_triples[:, 2]), min=0))
         return torch.mean(pos_loss)
     """
-    def loss(self, pred, conf):
+    def loss(self, pred,neg_pred, conf):
         return torch.mean(torch.abs(pred - conf))  # MAE loss
 
     
@@ -66,14 +66,14 @@ class TransEUncertainty(nn.Module):
         loss_neg = torch.mean(F.softplus(-neg_pred))
         return loss_pos + loss_neg
     
-    def gaussian_nll_loss(self, pred, confidence_scores):
+    def gaussian_nll_loss(self, pred, neg_pred, confidence_scores):
 
         sigma2 = (F.softplus(pred) + 1/(2 * math.pi))** 2
         #pos_scores = self(pos_triples[:, 0], pos_triples[:, 1], pos_triples[:, 2])
         loss = torch.mean(0.5 *  torch.log(sigma2) + (pred - confidence_scores) ** 2 / (2 * sigma2))
         return loss
     
-    def kl_divergence_loss(self, pos_pred, confidence_scores):
+    def kl_divergence_loss(self, pos_pred, neg_pred, confidence_scores):
 
         p = F.softmax(pos_pred, dim=0)
         q = F.softmax(confidence_scores, dim=0)
@@ -100,7 +100,7 @@ class DistMultUncertainty(nn.Module):
         return torch.sigmoid(torch.sum(head_embedding * relation_embedding * tail_embedding, dim=1))
 
     # MAE loss
-    def loss(self, pred, conf):
+    def loss(self, pred, neg_pred, conf):
         return torch.mean(torch.abs(pred - conf))
 
     """
@@ -153,7 +153,7 @@ class DistMultUncertainty(nn.Module):
                 
         return torch.mean(0.5 * torch.log(2 * math.pi * sigma2) +((pred - confidence_scores) ** 2) / (sigma2))
 
-    def kl_divergence_loss(self, pos_pred, confidence_scores):
+    def kl_divergence_loss(self, pos_pred, neg_pred, confidence_scores):
 
         p = F.softmax(pos_pred, dim=0)
         q = F.softmax(confidence_scores, dim=0)
@@ -189,7 +189,7 @@ class ComplExUncertainty(nn.Module):
             dim=1
         ))
 
-    def loss(self, pred, conf):
+    def loss(self, pred, neg_pred, conf):
         conf = conf.clamp(0.05, 0.95)
         return torch.mean(torch.abs(pred - conf))
 
@@ -249,7 +249,7 @@ class ComplExUncertainty(nn.Module):
         return loss.mean()
     
     
-    def kl_divergence_loss(self, pos_pred, confidence_scores):
+    def kl_divergence_loss(self, pos_pred, neg_pred, confidence_scores):
 
         p = F.softmax(pos_pred, dim=0)
         q = F.softmax(confidence_scores, dim=0)
