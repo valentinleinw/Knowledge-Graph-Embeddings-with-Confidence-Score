@@ -660,7 +660,7 @@ def train_and_evaluate(file_path, dataset_models, loss_function="loss", embeddin
 
     #train_and_evaluate_normal_models(dataset_models, "train_and_evaluate" + "_" + loss_function, embedding_dim=embedding_dim, batch_size=batch_size, num_epochs=num_epochs, result_file=result_file)
     
-def train_and_evaluate_mae(file_path, embedding_dim=50, batch_size=64, 
+def train_and_evaluate_mae(file_path, loss_function, embedding_dim=50, batch_size=64, 
                                 num_epochs=10, margin=1.0, result_file='evaluation_results.csv',
                                 patience = 10, delta=1e-4):
     
@@ -684,22 +684,22 @@ def train_and_evaluate_mae(file_path, embedding_dim=50, batch_size=64,
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False)
 
     models = {
-        #"TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim).to(device, non_blocking=True),
+        "TransEUncertainty": TransEUncertainty(num_entities, num_relations, embedding_dim).to(device, non_blocking=True),
         "DistMultUncertainty": DistMultUncertainty(num_entities, num_relations, embedding_dim).to(device, non_blocking=True),
-        #"ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim).to(device, non_blocking=True),
+        "ComplExUncertainty": ComplExUncertainty(num_entities, num_relations, embedding_dim).to(device, non_blocking=True),
     }
 
     optimizers = {name: optim.Adam(model.parameters(), lr=0.001) for name, model in models.items()}
 
     training_loop_mae(
-        models, full_train_loader, test_loader=test_loader, device=device,
+        models, loss_function, full_train_loader, test_loader=test_loader, device=device,
         optimizers=optimizers, num_entities=num_entities,
         num_epochs=num_epochs,
         embedding_dim=embedding_dim, batch_size=batch_size, margin=margin,
         file_path=file_path, result_file=result_file, patience=patience, delta=delta
     )
     
-def training_loop_mae(models, train_loader, test_loader, device, optimizers, num_entities,
+def training_loop_mae(models, loss_function, train_loader, test_loader, device, optimizers, num_entities,
                   num_epochs, embedding_dim, batch_size, margin, file_path, result_file,
                   patience=10, delta=1e-4):
    
@@ -729,7 +729,20 @@ def training_loop_mae(models, train_loader, test_loader, device, optimizers, num
                 neg_pred = model(neg_heads, neg_relations, neg_tails)
 
                 # Regression loss (MAE)
-                loss = model.softplus_loss(pred, neg_pred, confidences)
+                if loss_function == "loss":
+                    loss = model.loss(pred, confidences)
+                elif loss_function == "softplus":
+                    loss = model.softplus_loss(pred, neg_pred, confidences)
+                elif loss_function == "objective":
+                    loss = model.objective_function(pred, neg_pred, confidences)
+                elif loss_function == "gaussian":
+                    loss = model.gaussian_nll_loss(heads,relations, tails, confidences)
+                elif loss_function == "divergence":
+                    loss = model.loss(pred, confidences)
+                
+
+
+
 
                 # Optimize
                 optimizers[name].zero_grad()
